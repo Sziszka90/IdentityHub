@@ -1,4 +1,5 @@
 using IdentityHub.API.Extensions;
+using IdentityHub.API.Middleware;
 using IdentityHub.Application.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,6 +38,7 @@ app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 
 app.UseAuthentication();
+app.UseTenantIsolation();
 app.UseAuthorization();
 
 app.MapControllers();

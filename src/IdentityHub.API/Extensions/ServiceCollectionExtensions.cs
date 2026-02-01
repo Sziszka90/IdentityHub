@@ -48,8 +48,10 @@ public static class ServiceCollectionExtensions
         services.Configure<RolePermissionOptions>(
             configuration.GetSection(RolePermissionOptions.SectionName));
 
+        services.AddHttpContextAccessor();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IUserContextService, UserContextService>();
+        services.AddScoped<ITenantContextService, TenantContextService>();
 
         return services;
     }

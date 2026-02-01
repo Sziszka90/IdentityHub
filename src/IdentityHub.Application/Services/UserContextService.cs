@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using IdentityHub.Domain.Models;
 using IdentityHub.Application.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace IdentityHub.Application.Services;
 
@@ -10,10 +11,14 @@ namespace IdentityHub.Application.Services;
 public class UserContextService : IUserContextService
 {
     private readonly IPermissionService _permissionService;
+    private readonly ILogger<UserContextService> _logger;
 
-    public UserContextService(IPermissionService permissionService)
+    public UserContextService(
+        IPermissionService permissionService,
+        ILogger<UserContextService> logger)
     {
         _permissionService = permissionService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -23,6 +28,14 @@ public class UserContextService : IUserContextService
     {
         if (claimsPrincipal?.Identity?.IsAuthenticated != true)
         {
+            return new UserContext { IsAuthenticated = false };
+        }
+
+        var tenantId = GetClaimValue(claimsPrincipal, "tid") ?? string.Empty;
+
+        if (string.IsNullOrEmpty(tenantId))
+        {
+            _logger.LogWarning("Missing tenant ID in token claims");
             return new UserContext { IsAuthenticated = false };
         }
 
