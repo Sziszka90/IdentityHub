@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.9" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.2" />
   </ItemGroup>
 
@@ -13,6 +14,11 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>IdentityHub.Authorization</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Authorization infrastructure for Azure Entra ID applications with permission-based and role-based policies</Description>
+    <PackageTags>azure;entra-id;authorization;permissions;roles</PackageTags>
+    <RepositoryUrl>https://github.com/sziszka90/IdentityHub</RepositoryUrl>
   </PropertyGroup>
 
 </Project>

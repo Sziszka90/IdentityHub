@@ -73,40 +73,4 @@ public class AuthorizationController : ControllerBase
 
         return Ok(response);
     }
-
-    /// <summary>
-    /// Test endpoint - requires Admin role
-    /// </summary>
-    [HttpGet("admin-only")]
-    [Authorize(Policy = "RequireAdmin")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public IActionResult AdminOnly()
-    {
-        return Ok(new { message = "You have Admin access!" });
-    }
-
-    /// <summary>
-    /// Test endpoint - requires users.delete permission
-    /// </summary>
-    [HttpGet("can-delete-users")]
-    [Authorize(Policy = "CanDeleteUsers")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public IActionResult CanDeleteUsers()
-    {
-        return Ok(new { message = "You can delete users!" });
-    }
-
-    /// <summary>
-    /// Test endpoint - requires tickets.assign permission
-    /// </summary>
-    [HttpGet("can-assign-tickets")]
-    [Authorize(Policy = "CanAssignTickets")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public IActionResult CanAssignTickets()
-    {
-        return Ok(new { message = "You can assign tickets!" });
-    }
 }

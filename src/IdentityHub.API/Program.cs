@@ -1,12 +1,16 @@
 using IdentityHub.API.Extensions;
+using IdentityHub.Application.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Load authorization configuration
+builder.Configuration.AddJsonFile("appsettings.Authorization.json", optional: false, reloadOnChange: true);
 
 // Configure authentication with Azure Entra ID
 builder.Services.AddEntraIdAuthentication(builder.Configuration);
 
 // Configure authorization policies
-builder.Services.AddAuthorizationPolicies();
+builder.Services.AddAuthorizationPolicies(builder.Configuration);
 
 // Register application services
 builder.Services.AddApplicationServices(builder.Configuration);
