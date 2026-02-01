@@ -135,9 +135,9 @@ Beyond simple roles:
 
 - JSON-based declarative policies
 - Context-aware authorization:
-  - Tenant context
-  - Time-based access
-  - Role + permission combinations
+    - Tenant context
+    - Time-based access
+    - Role + permission combinations
 - Clean, extensible evaluation pipeline
 
 #### 🌟 Managed Identity & Secretless Authentication
@@ -151,9 +151,9 @@ Beyond simple roles:
 
 - Microsoft Graph change notifications (webhooks)
 - Real-time reactions to:
-  - User added/removed
-  - Group membership changes
-  - Role assignment updates
+    - User added/removed
+    - Group membership changes
+    - Role assignment updates
 - Production-ready reactive architecture
 
 #### 🌟 Admin UI (Angular)
@@ -185,9 +185,9 @@ Beyond simple roles:
 
 - Azure subscription with Entra ID (Azure AD)
 - App registration in Entra ID with appropriate permissions:
-  - `User.Read.All`
-  - `GroupMember.Read.All`
-  - `Directory.Read.All`
+    - `User.Read.All`
+    - `GroupMember.Read.All`
+    - `Directory.Read.All`
 - .NET 8 SDK / Node.js 20+ (depending on implementation)
 - Azure CLI installed and configured
 
@@ -245,26 +245,30 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 ### ✅ Phase 1: Foundation (Weeks 1-3)
 
 - [x] Entra ID authentication
-- [ ] JWT validation pipeline
-- [ ] Graph API integration
-- [ ] Basic RBAC implementation
-- [ ] Protected API endpoints
-- [ ] Audit logging
+- [x] JWT validation pipeline
+- [x] User context extraction from claims
+- [x] Basic RBAC implementation
+- [x] Protected API endpoints
+- [x] Clean Architecture refactoring
 
 ### 🔄 Phase 2: Enterprise Features (Weeks 4-6)
 
-- [ ] Multi-tenant support
-- [ ] App roles + groups
-- [ ] Permission model
-- [ ] Admin API
+- [x] Permission model (role-to-permission mapping)
+- [x] Group-to-role mapping configuration
+- [x] Policy-based authorization (`[Authorize(Policy)]`)
+- [x] Permission checking endpoints
+- [ ] Multi-tenant isolation middleware
+- [ ] Admin API (user/role/permission management)
 - [ ] Redis caching layer
 
 ### 📅 Phase 3: Advanced (Weeks 7+)
 
-- [ ] Policy engine
-- [ ] Managed Identity
-- [ ] Graph webhooks
+- [ ] Graph API integration (user/group enrichment)
+- [ ] Context-aware policy engine
+- [ ] Managed Identity support
+- [ ] Graph webhooks (change notifications)
 - [ ] Admin UI (Angular)
+- [ ] Audit logging and compliance
 
 ---
 
@@ -274,9 +278,9 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ```json
 {
-  "Admin": ["users.*", "groups.*", "roles.*", "audit.*"],
-  "User": ["users.read", "groups.read", "profile.update"],
-  "Viewer": ["users.read", "groups.read"]
+    "Admin": ["users.*", "groups.*", "roles.*", "audit.*"],
+    "User": ["users.read", "groups.read", "profile.update"],
+    "Viewer": ["users.read", "groups.read"]
 }
 ```
 
@@ -295,12 +299,12 @@ Granular actions that roles aggregate:
 
 ```json
 {
-  "policy": "CanManageUsers",
-  "conditions": {
-    "permissions": ["users.invite", "users.delete"],
-    "tenant": "required",
-    "mfa": true
-  }
+    "policy": "CanManageUsers",
+    "conditions": {
+        "permissions": ["users.invite", "users.delete"],
+        "tenant": "required",
+        "mfa": true
+    }
 }
 ```
 
@@ -428,4 +432,3 @@ Contributions are welcome! Please:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
