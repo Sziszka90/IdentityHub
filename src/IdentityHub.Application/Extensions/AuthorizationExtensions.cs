@@ -21,6 +21,7 @@ public static class AuthorizationExtensions
         // Register authorization handlers
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddScoped<IAuthorizationHandler, RoleAuthorizationHandler>();
+        services.AddScoped<IAuthorizationHandler, ContextAwareAuthorizationHandler>();
 
         // Load policy configuration
         var policyOptions = configuration
@@ -43,6 +44,13 @@ public static class AuthorizationExtensions
                 var roles = rolesString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 options.AddPolicy(policyName, policy =>
                     policy.Requirements.Add(new RoleRequirement(roles)));
+            }
+
+            // Add context-aware policies from configuration
+            foreach (var (policyName, _) in policyOptions.ContextPolicies)
+            {
+                options.AddPolicy(policyName, policy =>
+                    policy.Requirements.Add(new ContextAwareRequirement(policyName)));
             }
         });
 

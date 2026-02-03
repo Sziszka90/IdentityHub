@@ -257,15 +257,15 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 - [x] Group-to-role mapping configuration
 - [x] Policy-based authorization (`[Authorize(Policy)]`)
 - [x] Permission checking endpoints
-- [ ] Multi-tenant isolation middleware
-- [ ] Admin API (user/role/permission management)
-- [ ] Redis caching layer
+- [x] Multi-tenant isolation middleware
+- [x] Admin API (user/role/permission management)
+- [x] Redis caching layer
 
 ### 📅 Phase 3: Advanced (Weeks 7+)
 
-- [ ] Graph API integration (user/group enrichment)
-- [ ] Context-aware policy engine
-- [ ] Managed Identity support
+- [x] Graph API integration (user/group enrichment)
+- [x] Context-aware policy engine
+- [x] Managed Identity support
 - [ ] Graph webhooks (change notifications)
 - [ ] Admin UI (Angular)
 - [ ] Audit logging and compliance

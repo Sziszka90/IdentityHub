@@ -7,7 +7,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.9" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Graph" Version="5.42.0" />
   </ItemGroup>
 
   <PropertyGroup>

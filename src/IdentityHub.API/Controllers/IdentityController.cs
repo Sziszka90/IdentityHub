@@ -1,6 +1,5 @@
 using IdentityHub.Domain.Models;
 using IdentityHub.Application.Interfaces;
-using IdentityHub.API.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +8,6 @@ namespace IdentityHub.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-[ValidateTenant]
 public class IdentityController : ControllerBase
 {
     private readonly IUserContextService _userContextService;

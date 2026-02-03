@@ -48,10 +48,42 @@ public static class ServiceCollectionExtensions
         services.Configure<RolePermissionOptions>(
             configuration.GetSection(RolePermissionOptions.SectionName));
 
+        services.Configure<RedisCacheOptions>(
+            configuration.GetSection(RedisCacheOptions.SectionName));
+
         services.AddHttpContextAccessor();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IUserContextService, UserContextService>();
         services.AddScoped<ITenantContextService, TenantContextService>();
+        services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<IGraphService, GraphService>();
+        services.AddSingleton<ICacheService, CacheService>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configure Redis distributed caching
+    /// </summary>
+    public static IServiceCollection AddRedisCache(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var redisCacheOptions = configuration.GetSection(RedisCacheOptions.SectionName).Get<RedisCacheOptions>();
+
+        if (redisCacheOptions?.Enabled == true && !string.IsNullOrEmpty(redisCacheOptions.ConnectionString))
+        {
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisCacheOptions.ConnectionString;
+                options.InstanceName = "IdentityHub:";
+            });
+        }
+        else
+        {
+            // Add a no-op distributed cache if Redis is not configured
+            services.AddDistributedMemoryCache();
+        }
 
         return services;
     }
