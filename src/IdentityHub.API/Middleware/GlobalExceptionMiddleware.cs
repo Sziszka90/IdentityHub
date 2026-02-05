@@ -54,7 +54,7 @@ public class GlobalExceptionMiddleware
             ArgumentNullException or ArgumentException => (HttpStatusCode.BadRequest,
                 "Invalid request parameters."),
 
-            KeyNotFoundException => (HttpStatusCode.NotFound,
+            KeyNotFoundException or GraphResourceNotFoundException => (HttpStatusCode.NotFound,
                 "The requested resource was not found."),
 
             _ => (HttpStatusCode.InternalServerError,

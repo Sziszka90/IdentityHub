@@ -24,20 +24,13 @@ public class TenantContextService : ITenantContextService
             return new TenantContext();
         }
 
-        // Get from Items (set by middleware)
         if (httpContext.Items.TryGetValue("TenantContext", out var contextObj)
             && contextObj is TenantContext tenantContext)
         {
             return tenantContext;
         }
 
-        // If middleware didn't set it, tenant validation failed
         return new TenantContext();
-    }
-
-    public bool ValidateTenantContext(TenantContext context)
-    {
-        return context?.IsValid ?? false;
     }
 
     public bool UserBelongsToTenant(string userId, string tenantId)

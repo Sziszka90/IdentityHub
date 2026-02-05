@@ -13,11 +13,6 @@ public interface ITenantContextService
     TenantContext GetTenantContext();
 
     /// <summary>
-    /// Validate tenant context
-    /// </summary>
-    bool ValidateTenantContext(TenantContext context);
-
-    /// <summary>
     /// Check if user belongs to tenant
     /// </summary>
     bool UserBelongsToTenant(string userId, string tenantId);

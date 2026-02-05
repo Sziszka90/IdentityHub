@@ -1,4 +1,5 @@
 using IdentityHub.Application.Interfaces;
+using IdentityHub.Domain.Exceptions;
 using IdentityHub.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -48,7 +49,6 @@ public class GraphService : IGraphService
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
 
-        // Try cache first
         var cacheKey = $"graph:user:{userId}";
         var cached = await _cacheService.GetAsync<User>(cacheKey);
         if (cached != null)
@@ -62,9 +62,8 @@ public class GraphService : IGraphService
             _logger.LogInformation("Fetching user {UserId} from Graph API", userId);
             var user = await _graphClient.Users[userId].GetAsync();
 
-            if (user != null)
+            if (user is not null)
             {
-                // Cache the result
                 await _cacheService.SetAsync(
                     cacheKey,
                     user,
@@ -76,12 +75,12 @@ public class GraphService : IGraphService
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
         {
             _logger.LogInformation("User {UserId} not found in Graph API", userId);
-            return null; // User doesn't exist - this is valid
+            throw GraphResourceNotFoundException.ForUser(userId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching user {UserId} from Graph API", userId);
-            throw; // Propagate unexpected errors
+            throw;
         }
     }
 
@@ -91,7 +90,7 @@ public class GraphService : IGraphService
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<string>> GetUserGroupsAsync(string userId)
     {
-        if (!_isAvailable || _graphClient == null)
+        if (!_isAvailable || _graphClient is null)
         {
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
@@ -115,7 +114,7 @@ public class GraphService : IGraphService
             {
                 foreach (var directoryObject in memberOf.Value)
                 {
-                    if (directoryObject is Group group && group.Id != null)
+                    if (directoryObject is Group group && group.Id is not null)
                     {
                         groups.Add(group.Id);
                     }
@@ -131,13 +130,13 @@ public class GraphService : IGraphService
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
         {
-            _logger.LogInformation("User {UserId} not found, returning empty groups", userId);
-            return new List<string>(); // User doesn't exist - return empty list
+            _logger.LogInformation("User {UserId} not found in Graph API", userId);
+            throw GraphResourceNotFoundException.ForUser(userId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching groups for user {UserId} from Graph API", userId);
-            throw; // Propagate unexpected errors
+            throw;
         }
     }
 
@@ -152,7 +151,6 @@ public class GraphService : IGraphService
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
 
-        // Try cache first
         var cacheKey = $"graph:user:{userId}:transitive-groups";
         var cached = await _cacheService.GetAsync<List<string>>(cacheKey);
         if (cached != null)
@@ -179,7 +177,6 @@ public class GraphService : IGraphService
                 }
             }
 
-            // Cache the result
             await _cacheService.SetAsync(
                 cacheKey,
                 groups,
@@ -189,13 +186,13 @@ public class GraphService : IGraphService
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
         {
-            _logger.LogInformation("User {UserId} not found, returning empty transitive groups", userId);
-            return new List<string>(); // User doesn't exist - return empty list
+            _logger.LogInformation("User {UserId} not found in Graph API", userId);
+            throw GraphResourceNotFoundException.ForUser(userId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching transitive groups for user {UserId} from Graph API", userId);
-            throw; // Propagate unexpected errors
+            throw;
         }
     }
 
@@ -211,7 +208,6 @@ public class GraphService : IGraphService
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
 
-        // Try cache first
         var cacheKey = $"graph:group:{groupId}";
         var cached = await _cacheService.GetAsync<Group>(cacheKey);
         if (cached != null)
@@ -225,9 +221,8 @@ public class GraphService : IGraphService
             _logger.LogInformation("Fetching group {GroupId} from Graph API", groupId);
             var group = await _graphClient.Groups[groupId].GetAsync();
 
-            if (group != null)
+            if (group is not null)
             {
-                // Cache the result (groups change less frequently)
                 await _cacheService.SetAsync(
                     cacheKey,
                     group,
@@ -239,12 +234,12 @@ public class GraphService : IGraphService
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
         {
             _logger.LogInformation("Group {GroupId} not found in Graph API", groupId);
-            return null; // Group doesn't exist - this is valid
+            throw GraphResourceNotFoundException.ForGroup(groupId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching group {GroupId} from Graph API", groupId);
-            throw; // Propagate unexpected errors
+            throw;
         }
     }
 
@@ -254,7 +249,7 @@ public class GraphService : IGraphService
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<User>> GetUsersAsync(int top = 100, int skip = 0)
     {
-        if (!_isAvailable || _graphClient == null)
+        if (!_isAvailable || _graphClient is null)
         {
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
@@ -274,7 +269,7 @@ public class GraphService : IGraphService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching users from Graph API");
-            throw; // Propagate errors
+            throw;
         }
     }
 
@@ -289,7 +284,6 @@ public class GraphService : IGraphService
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
 
-        // Try cache first
         var cacheKey = $"graph:group:{groupId}:members";
         var cached = await _cacheService.GetAsync<List<string>>(cacheKey);
         if (cached != null)
@@ -316,7 +310,6 @@ public class GraphService : IGraphService
                 }
             }
 
-            // Cache the result
             await _cacheService.SetAsync(
                 cacheKey,
                 members,
@@ -326,13 +319,13 @@ public class GraphService : IGraphService
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
         {
-            _logger.LogInformation("Group {GroupId} not found, returning empty members", groupId);
-            return new List<string>(); // Group doesn't exist - return empty list
+            _logger.LogInformation("Group {GroupId} not found in Graph API", groupId);
+            throw GraphResourceNotFoundException.ForGroup(groupId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching members for group {GroupId} from Graph API", groupId);
-            throw; // Propagate unexpected errors
+            throw;
         }
     }
 
@@ -348,7 +341,6 @@ public class GraphService : IGraphService
 
         try
         {
-            // Try a simple request to verify connectivity
             await _graphClient.Users.GetAsync(config =>
             {
                 config.QueryParameters.Top = 1;

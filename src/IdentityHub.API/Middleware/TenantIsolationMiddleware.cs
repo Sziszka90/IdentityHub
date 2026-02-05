@@ -18,14 +18,12 @@ public class TenantIsolationMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Skip for unauthenticated requests
         if (context.User?.Identity?.IsAuthenticated is not true)
         {
             await _next(context);
             return;
         }
 
-        // Extract tenant ID from claims
         var tenantId = context.User.FindFirst("tid")?.Value
                     ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid")?.Value;
 
@@ -41,7 +39,6 @@ public class TenantIsolationMiddleware
             return;
         }
 
-        // Store tenant context in request items
         var tenantContext = new TenantContext
         {
             TenantId = tenantId,

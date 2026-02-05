@@ -32,10 +32,10 @@ public class TenantAuthorizationHandler : AuthorizationHandler<TenantRequirement
 
         var tenantContext = _tenantContextService.GetTenantContext();
 
-        if (!_tenantContextService.ValidateTenantContext(tenantContext))
+        if (string.IsNullOrEmpty(tenantContext?.TenantId))
         {
             _logger.LogWarning("Tenant authorization failed: Invalid tenant context for user {UserId}",
-                tenantContext.UserId);
+                tenantContext?.UserId);
             return Task.CompletedTask;
         }
 
