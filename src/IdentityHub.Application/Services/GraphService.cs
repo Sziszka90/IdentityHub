@@ -40,18 +40,19 @@ public class GraphService : IGraphService
     /// <summary>
     /// Get user profile by ID (with caching)
     /// </summary>
-    /// <returns>User object if found, null if user doesn't exist</returns>
+    /// <param name="userId">The unique identifier of the user</param>
+    /// <returns>User</returns>
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<User?> GetUserAsync(string userId)
     {
-        if (!_isAvailable || _graphClient == null)
+        if (!_isAvailable || _graphClient is null)
         {
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
 
         var cacheKey = $"graph:user:{userId}";
         var cached = await _cacheService.GetAsync<User>(cacheKey);
-        if (cached != null)
+        if (cached is not null)
         {
             _logger.LogDebug("Cache hit for user {UserId}", userId);
             return cached;
@@ -87,6 +88,8 @@ public class GraphService : IGraphService
     /// <summary>
     /// Get user's group memberships (with caching)
     /// </summary>
+    /// <param name="userId">The unique identifier of the user</param>
+    /// <returns>List of group IDs the user belongs to</returns>
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<string>> GetUserGroupsAsync(string userId)
     {
@@ -97,7 +100,7 @@ public class GraphService : IGraphService
 
         var cacheKey = $"graph:user:{userId}:groups";
         var cached = await _cacheService.GetAsync<List<string>>(cacheKey);
-        if (cached != null)
+        if (cached is not null)
         {
             _logger.LogDebug("Cache hit for user {UserId} groups", userId);
             return cached;
@@ -110,7 +113,7 @@ public class GraphService : IGraphService
 
             var memberOf = await _graphClient.Users[userId].MemberOf.GetAsync();
 
-            if (memberOf?.Value != null)
+            if (memberOf?.Value is not null)
             {
                 foreach (var directoryObject in memberOf.Value)
                 {
@@ -143,17 +146,19 @@ public class GraphService : IGraphService
     /// <summary>
     /// Get user's transitive group memberships (includes nested groups, with caching)
     /// </summary>
+    /// <param name="userId">The unique identifier of the user</param>
+    /// <returns>List of group IDs including nested group memberships</returns>
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<string>> GetUserTransitiveGroupsAsync(string userId)
     {
-        if (!_isAvailable || _graphClient == null)
+        if (!_isAvailable || _graphClient is null)
         {
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
 
         var cacheKey = $"graph:user:{userId}:transitive-groups";
         var cached = await _cacheService.GetAsync<List<string>>(cacheKey);
-        if (cached != null)
+        if (cached is not null)
         {
             _logger.LogDebug("Cache hit for user {UserId} transitive groups", userId);
             return cached;
@@ -166,11 +171,11 @@ public class GraphService : IGraphService
 
             var memberOf = await _graphClient.Users[userId].TransitiveMemberOf.GetAsync();
 
-            if (memberOf?.Value != null)
+            if (memberOf?.Value is not null)
             {
                 foreach (var directoryObject in memberOf.Value)
                 {
-                    if (directoryObject is Group group && group.Id != null)
+                    if (directoryObject is Group group && group.Id is not null)
                     {
                         groups.Add(group.Id);
                     }
@@ -199,18 +204,19 @@ public class GraphService : IGraphService
     /// <summary>
     /// Get group by ID (with caching)
     /// </summary>
+    /// <param name="groupId">The unique identifier of the group</param>
     /// <returns>Group object if found, null if group doesn't exist</returns>
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<Group?> GetGroupAsync(string groupId)
     {
-        if (!_isAvailable || _graphClient == null)
+        if (!_isAvailable || _graphClient is null)
         {
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
 
         var cacheKey = $"graph:group:{groupId}";
         var cached = await _cacheService.GetAsync<Group>(cacheKey);
-        if (cached != null)
+        if (cached is not null)
         {
             _logger.LogDebug("Cache hit for group {GroupId}", groupId);
             return cached;
@@ -246,6 +252,9 @@ public class GraphService : IGraphService
     /// <summary>
     /// Get all users in tenant (paginated)
     /// </summary>
+    /// <param name="top">Maximum number of users to return (default: 100)</param>
+    /// <param name="skip">Number of users to skip for pagination (default: 0)</param>
+    /// <returns>List of users in the tenant</returns>
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<User>> GetUsersAsync(int top = 100, int skip = 0)
     {
@@ -276,17 +285,19 @@ public class GraphService : IGraphService
     /// <summary>
     /// Get group members (with caching)
     /// </summary>
+    /// <param name="groupId">The unique identifier of the group</param>
+    /// <returns>List of member IDs in the group</returns>
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<string>> GetGroupMembersAsync(string groupId)
     {
-        if (!_isAvailable || _graphClient == null)
+        if (!_isAvailable || _graphClient is null)
         {
             throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
         }
 
         var cacheKey = $"graph:group:{groupId}:members";
         var cached = await _cacheService.GetAsync<List<string>>(cacheKey);
-        if (cached != null)
+        if (cached is not null)
         {
             _logger.LogDebug("Cache hit for group {GroupId} members", groupId);
             return cached;
@@ -299,11 +310,11 @@ public class GraphService : IGraphService
 
             var groupMembers = await _graphClient.Groups[groupId].Members.GetAsync();
 
-            if (groupMembers?.Value != null)
+            if (groupMembers?.Value is not null)
             {
                 foreach (var directoryObject in groupMembers.Value)
                 {
-                    if (directoryObject.Id != null)
+                    if (directoryObject.Id is not null)
                     {
                         members.Add(directoryObject.Id);
                     }
@@ -332,9 +343,10 @@ public class GraphService : IGraphService
     /// <summary>
     /// Check if Graph API is available
     /// </summary>
+    /// <returns>True if Graph API is configured and accessible, false otherwise</returns>
     public async Task<bool> IsAvailableAsync()
     {
-        if (!_isAvailable || _graphClient == null)
+        if (!_isAvailable || _graphClient is null)
         {
             return false;
         }
