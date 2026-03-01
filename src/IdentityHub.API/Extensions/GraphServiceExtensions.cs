@@ -1,9 +1,6 @@
 using Azure.Identity;
 using IdentityHub.Domain.Models;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Microsoft.Graph;
-using Microsoft.Extensions.Logging;
 
 namespace IdentityHub.API.Extensions;
 
@@ -21,14 +18,12 @@ public static class GraphServiceExtensions
     {
         var entraIdOptions = configuration.GetSection(EntraIdOptions.SectionName).Get<EntraIdOptions>();
 
-        if (entraIdOptions == null)
+        if (entraIdOptions is null)
         {
-            // No Entra ID configuration - Graph API will not be available
-            services.AddSingleton<GraphServiceClient?>((_) => null);
             return services;
         }
 
-        services.AddSingleton<GraphServiceClient>(sp =>
+        services.AddSingleton(sp =>
         {
             var logger = sp.GetRequiredService<ILogger<GraphServiceClient>>();
 
@@ -38,7 +33,6 @@ public static class GraphServiceExtensions
                 {
                     logger.LogInformation("Configuring Graph API with Managed Identity");
 
-                    // Use Managed Identity (no secrets needed!)
                     var credential = new DefaultAzureCredential();
 
                     return new GraphServiceClient(credential, entraIdOptions.GraphApiScopes);
@@ -53,7 +47,6 @@ public static class GraphServiceExtensions
                         return null!;
                     }
 
-                    // Use client secret
                     var credential = new ClientSecretCredential(
                         entraIdOptions.TenantId,
                         entraIdOptions.ClientId,

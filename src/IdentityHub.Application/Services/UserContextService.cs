@@ -26,7 +26,7 @@ public class UserContextService : IUserContextService
     /// </summary>
     public UserContext GetUserContext(ClaimsPrincipal claimsPrincipal)
     {
-        if (claimsPrincipal?.Identity?.IsAuthenticated != true)
+        if (claimsPrincipal?.Identity?.IsAuthenticated is not true)
         {
             return new UserContext { IsAuthenticated = false };
         }
@@ -49,29 +49,22 @@ public class UserContextService : IUserContextService
             CreatedAt = DateTime.UtcNow
         };
 
-        // Extract roles from token
         var tokenRoles = claimsPrincipal.Claims
             .Where(c => c.Type == ClaimTypes.Role || c.Type == "roles")
             .Select(c => c.Value)
             .ToList();
 
-        // Extract groups (if present in token)
-        userContext.Groups = claimsPrincipal.Claims
+        userContext.Groups = [.. claimsPrincipal.Claims
             .Where(c => c.Type == "groups")
-            .Select(c => c.Value)
-            .ToList();
+            .Select(c => c.Value)];
 
-        // Map groups to application roles
         var rolesFromGroups = _permissionService.MapGroupsToRoles(userContext.Groups);
 
-        // Combine token roles and mapped roles (union)
         var allRoles = tokenRoles.Concat(rolesFromGroups).Distinct().ToList();
         userContext.Roles = allRoles;
 
-        // Resolve permissions from roles
         userContext.Permissions = _permissionService.ResolvePermissions(allRoles);
 
-        // Store all claims for debugging/auditing
         userContext.Claims = claimsPrincipal.Claims
             .GroupBy(c => c.Type)
             .ToDictionary(

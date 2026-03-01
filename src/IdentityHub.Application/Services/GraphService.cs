@@ -29,7 +29,7 @@ public class GraphService : IGraphService
         _cacheService = cacheService;
         _cacheOptions = cacheOptions.Value;
         _logger = logger;
-        _isAvailable = graphClient != null;
+        _isAvailable = graphClient is not null;
 
         if (!_isAvailable)
         {

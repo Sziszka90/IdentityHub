@@ -1,7 +1,10 @@
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Application.Services;
 using IdentityHub.Domain.Models;
+using IdentityHub.Infrastructure.Data;
+using IdentityHub.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 
 namespace IdentityHub.API.Extensions;
@@ -58,6 +61,24 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<IGraphService, GraphService>();
         services.AddSingleton<ICacheService, CacheService>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configure the authorization database (SQL Server + EF Core)
+    /// </summary>
+    public static IServiceCollection AddAuthorizationDatabase(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("AuthorizationDb")
+            ?? throw new InvalidOperationException("ConnectionStrings:AuthorizationDb is not configured");
+
+        services.AddDbContext<AuthorizationDbContext>(options =>
+            options.UseSqlServer(connectionString));
+
+        services.AddScoped<IAuthorizationConfigRepository, AuthorizationConfigRepository>();
 
         return services;
     }

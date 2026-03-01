@@ -23,6 +23,10 @@ public static class AuthorizationExtensions
         services.AddScoped<IAuthorizationHandler, RoleAuthorizationHandler>();
         services.AddScoped<IAuthorizationHandler, ContextAwareAuthorizationHandler>();
 
+        // Register AuthorizationPoliciesOptions for IOptions<> injection
+        services.Configure<AuthorizationPoliciesOptions>(
+            configuration.GetSection(AuthorizationPoliciesOptions.SectionName));
+
         // Load policy configuration
         var policyOptions = configuration
             .GetSection(AuthorizationPoliciesOptions.SectionName)

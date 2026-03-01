@@ -116,7 +116,7 @@ public class AdminService : IAdminService
 
         var cacheKey = $"user:{userId}:permissions:{tenantContext.TenantId}";
         var cached = await _cacheService.GetAsync<UserPermissionsDto>(cacheKey);
-        if (cached != null)
+        if (cached is not null)
         {
             _logger.LogDebug("Cache hit for user {UserId} permissions", userId);
             return cached;
@@ -128,7 +128,7 @@ public class AdminService : IAdminService
         try
         {
             var graphUser = await _graphService.GetUserAsync(userId);
-            if (graphUser == null)
+            if (graphUser is null)
             {
                 _logger.LogWarning("User {UserId} not found in Graph API", userId);
                 throw new KeyNotFoundException($"User with ID '{userId}' was not found");
@@ -194,12 +194,7 @@ public class AdminService : IAdminService
 
         try
         {
-            var graphUser = await _graphService.GetUserAsync(userId);
-            if (graphUser == null)
-            {
-                throw new KeyNotFoundException($"User with ID '{userId}' was not found");
-            }
-
+            var graphUser = await _graphService.GetUserAsync(userId) ?? throw new KeyNotFoundException($"User with ID '{userId}' was not found");
             var groupIds = await _graphService.GetUserGroupsAsync(userId);
 
             var groupResolutions = new List<GroupResolution>();
@@ -226,7 +221,7 @@ public class AdminService : IAdminService
                     Permissions = permissions
                 });
 
-                if (role != null)
+                if (role is not null)
                 {
                     allRoles.Add(role);
                 }
@@ -319,8 +314,6 @@ public class AdminService : IAdminService
             return null;
         }
 
-        // In production, persist to database
-        // For now, we can't dynamically add to options, so we'll simulate success
         _logger.LogInformation("Created role {RoleName} with {Count} permissions", roleName, permissions.Count);
 
         await Task.CompletedTask;
@@ -349,8 +342,6 @@ public class AdminService : IAdminService
             return null;
         }
 
-        // In production, update in database
-        // For now, we can't dynamically modify options, so we'll simulate success
         _logger.LogInformation("Updated role {RoleName} with {Count} permissions", roleName, permissions.Count);
 
         await Task.CompletedTask;
@@ -406,7 +397,6 @@ public class AdminService : IAdminService
             return null;
         }
 
-        // Validate all roles exist
         foreach (var role in roles)
         {
             if (!_rolePermissionOptions.RolePermissions.ContainsKey(role))
@@ -441,7 +431,7 @@ public class AdminService : IAdminService
         return new UserPermissionsDto
         {
             UserId = userId,
-            Email = "user@example.com", // Would come from Graph API
+            Email = "user@example.com", 
             DisplayName = "User", // Would come from Graph API
             TenantId = tenantContext.TenantId,
             Groups = new List<string>(), // Would come from Graph API

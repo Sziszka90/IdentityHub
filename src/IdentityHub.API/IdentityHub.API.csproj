@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\IdentityHub.Domain\IdentityHub.Domain.csproj" />
     <ProjectReference Include="..\IdentityHub.Application\IdentityHub.Application.csproj" />
+    <ProjectReference Include="..\IdentityHub.Infrastructure\IdentityHub.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
