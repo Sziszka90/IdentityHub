@@ -13,7 +13,7 @@ public interface IUserContextService
     /// </summary>
     /// <param name="claimsPrincipal">The authenticated user's claims</param>
     /// <returns>User context with identity information</returns>
-    UserContext GetUserContext(ClaimsPrincipal claimsPrincipal);
+    Task<UserContext> GetUserContext(ClaimsPrincipal claimsPrincipal);
 
     /// <summary>
     /// Validate that the user context is complete and valid

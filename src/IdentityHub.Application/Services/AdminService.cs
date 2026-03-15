@@ -61,7 +61,9 @@ public class AdminService : IAdminService
             foreach (var graphUser in graphUsers)
             {
                 if (string.IsNullOrEmpty(graphUser.Id))
+                {
                     continue;
+                }
 
                 var groupIds = await _graphService.GetUserGroupsAsync(graphUser.Id);
 
@@ -206,12 +208,12 @@ public class AdminService : IAdminService
                 var group = await _graphService.GetGroupAsync(groupId);
                 var groupName = group?.DisplayName ?? groupId;
 
-                var roles = _permissionService.MapGroupsToRoles(new[] { groupId });
+                var roles = _permissionService.MapGroupsToRoles([groupId]);
                 var role = roles.FirstOrDefault();
 
                 var permissions = role != null
-                    ? _permissionService.ResolvePermissions(new[] { role })
-                    : new List<string>();
+                    ? _permissionService.ResolvePermissions([role])
+                    : [];
 
                 groupResolutions.Add(new GroupResolution
                 {
@@ -237,8 +239,8 @@ public class AdminService : IAdminService
                 Email = graphUser.Mail ?? graphUser.UserPrincipalName ?? "",
                 TenantId = tenantContext.TenantId,
                 GroupResolutions = groupResolutions,
-                EffectiveRoles = allRoles.ToList(),
-                EffectivePermissions = allPermissions.ToList()
+                EffectiveRoles = [.. allRoles],
+                EffectivePermissions = [.. allPermissions]
             };
         }
         catch (InvalidOperationException ex)
@@ -265,7 +267,7 @@ public class AdminService : IAdminService
             roles.Add(new RolePermissionsDto
             {
                 RoleName = roleName,
-                Permissions = permissions.ToList()
+                Permissions = [.. permissions]
             });
         }
 
@@ -288,7 +290,7 @@ public class AdminService : IAdminService
             return new RolePermissionsDto
             {
                 RoleName = roleName,
-                Permissions = permissions.ToList()
+                Permissions = [.. permissions]
             };
         }
 
@@ -431,7 +433,7 @@ public class AdminService : IAdminService
         return new UserPermissionsDto
         {
             UserId = userId,
-            Email = "user@example.com", 
+            Email = "user@example.com",
             DisplayName = "User", // Would come from Graph API
             TenantId = tenantContext.TenantId,
             Groups = new List<string>(), // Would come from Graph API

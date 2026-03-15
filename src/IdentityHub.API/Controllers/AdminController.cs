@@ -1,7 +1,7 @@
 using IdentityHub.Application.Interfaces;
-using IdentityHub.API.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using IdentityHub.API.DTOs.AuthorizationConfig.Requests;
 
 namespace IdentityHub.API.Controllers;
 
@@ -40,7 +40,7 @@ public class AdminController : ControllerBase
         return Ok(new
         {
             count = users.Count,
-            users = users
+            users
         });
     }
 
@@ -147,17 +147,17 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
     {
-        if (string.IsNullOrEmpty(request.RoleName))
+        if (string.IsNullOrEmpty(request.Name))
         {
             return BadRequest(new { message = "Role name is required" });
         }
 
-        _logger.LogInformation("Admin creating role {RoleName}", request.RoleName);
+        _logger.LogInformation("Admin creating role {Name}", request.Name);
 
-        var role = await _adminService.CreateRoleAsync(request.RoleName, request.Permissions);
+        var role = await _adminService.CreateRoleAsync(request.Name, request.Permissions);
         if (role == null)
         {
-            return Conflict(new { message = $"Role {request.RoleName} already exists" });
+            return Conflict(new { message = $"Role {request.Name} already exists" });
         }
 
         return CreatedAtAction(
@@ -179,7 +179,7 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UpdateRolePermissions(
         string roleName,
-        [FromBody] UpdateRolePermissionsRequest request)
+        [FromBody] CreateRoleRequest request)
     {
         _logger.LogInformation("Admin updating permissions for role {RoleName}", roleName);
 

@@ -12,14 +12,14 @@ public interface IPermissionService
     /// </summary>
     /// <param name="roles">List of role names</param>
     /// <returns>Combined list of permissions from all roles</returns>
-    List<string> ResolvePermissions(IEnumerable<string> roles);
+    Task<List<string>> ResolvePermissions(IEnumerable<string> roles);
 
     /// <summary>
     /// Map Entra ID groups to application roles
     /// </summary>
     /// <param name="groups">List of Entra ID group names or IDs</param>
     /// <returns>List of application role names</returns>
-    List<string> MapGroupsToRoles(IEnumerable<string> groups);
+    Task<List<string>> MapGroupsToRoles(IEnumerable<string> groups);
 
     /// <summary>
     /// Check if a permission matches a pattern (supports wildcards)

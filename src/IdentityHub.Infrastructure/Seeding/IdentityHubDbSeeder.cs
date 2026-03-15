@@ -17,8 +17,8 @@ public static class AuthorizationDbSeeder
     public static async Task SeedFromConfigAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AuthorizationDbContext>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<AuthorizationDbContext>>();
+        var db = scope.ServiceProvider.GetRequiredService<IdentityHubDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<IdentityHubDbContext>>();
         var rolePermOptions = scope.ServiceProvider.GetRequiredService<IOptions<RolePermissionOptions>>().Value;
         var policyOptions = scope.ServiceProvider.GetService<IOptions<AuthorizationPoliciesOptions>>()?.Value;
 

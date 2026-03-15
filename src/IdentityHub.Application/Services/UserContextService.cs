@@ -24,7 +24,7 @@ public class UserContextService : IUserContextService
     /// <summary>
     /// Extract user context from JWT token claims
     /// </summary>
-    public UserContext GetUserContext(ClaimsPrincipal claimsPrincipal)
+    public async Task<UserContext> GetUserContext(ClaimsPrincipal claimsPrincipal)
     {
         if (claimsPrincipal?.Identity?.IsAuthenticated is not true)
         {
@@ -58,12 +58,12 @@ public class UserContextService : IUserContextService
             .Where(c => c.Type == "groups")
             .Select(c => c.Value)];
 
-        var rolesFromGroups = _permissionService.MapGroupsToRoles(userContext.Groups);
+        var rolesFromGroups = await _permissionService.MapGroupsToRoles(userContext.Groups);
 
         var allRoles = tokenRoles.Concat(rolesFromGroups).Distinct().ToList();
         userContext.Roles = allRoles;
 
-        userContext.Permissions = _permissionService.ResolvePermissions(allRoles);
+        userContext.Permissions = await _permissionService.ResolvePermissions(allRoles);
 
         userContext.Claims = claimsPrincipal.Claims
             .GroupBy(c => c.Type)

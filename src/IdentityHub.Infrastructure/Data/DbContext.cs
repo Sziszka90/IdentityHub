@@ -8,7 +8,7 @@ namespace IdentityHub.Infrastructure.Data;
 /// </summary>
 public class IdentityHubDbContext : DbContext
 {
-    public IdentityHubDbContext(DbContextOptions<DbContext> options)
+    public IdentityHubDbContext(DbContextOptions<IdentityHubDbContext> options)
         : base(options)
     {
     }

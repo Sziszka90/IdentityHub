@@ -272,6 +272,148 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ---
 
+## 📦 Using IdentityHub.Authorization as a NuGet Package
+
+`IdentityHub.Application` is published as the `IdentityHub.Authorization` NuGet package. External .NET APIs can embed the full authorization engine — including permission and role handlers, Graph API integration, Redis caching, and policy registration — without running a separate service.
+
+There are two usage models:
+
+---
+
+### Model A — Standalone (config from appsettings, no central service)
+
+The external app carries its own role/permission config in `appsettings.json`. No network calls to IdentityHub.API are made.
+
+**1. Install the package**
+
+```bash
+dotnet add package IdentityHub.Authorization
+```
+
+**2. Add config to `appsettings.json`**
+
+```json
+{
+    "Authorization": {
+        "GroupToRoleMapping": {
+            "YourApp-Admins": "Admin",
+            "YourApp-Users": "User"
+        },
+        "RolePermissions": {
+            "Admin": ["orders.*", "users.*"],
+            "User": ["orders.read"]
+        }
+    },
+    "AuthorizationPolicies": {
+        "PermissionPolicies": {
+            "CanReadOrders": "orders.read",
+            "CanDeleteOrders": "orders.delete"
+        },
+        "RolePolicies": {
+            "RequireAdmin": "Admin"
+        }
+    }
+}
+```
+
+**3. Register in `Program.cs`**
+
+```csharp
+builder.Services.AddAuthorizationPolicies(builder.Configuration);
+```
+
+**4. Protect endpoints**
+
+```csharp
+[Authorize(Policy = "CanDeleteOrders")]
+[HttpDelete("{id}")]
+public IActionResult Delete(int id) { ... }
+```
+
+---
+
+### Model B — Connected (config from central IdentityHub.API service)
+
+The external app reads roles, permissions, and policies from the running IdentityHub.API service over HTTP. Config is managed centrally via the admin API — no need to touch `appsettings.json` per app.
+
+**1. Install the package**
+
+```bash
+dotnet add package IdentityHub.Authorization
+```
+
+**2. Add config to `appsettings.json`**
+
+```json
+{
+    "IdentityHubClient": {
+        "BaseUrl": "https://your-identityhub-instance.example.com",
+        "ApiKey": "your-machine-to-machine-bearer-token",
+        "CacheSeconds": 300
+    },
+    "AuthorizationPolicies": {
+        "PermissionPolicies": {
+            "CanDeleteOrders": "orders.delete"
+        },
+        "RolePolicies": {
+            "RequireAdmin": "Admin"
+        }
+    }
+}
+```
+
+> `CacheSeconds` controls how long the authorization config snapshot is cached in memory before the client re-fetches it from the API.
+
+**3. Register in `Program.cs`**
+
+```csharp
+// Registers the HTTP client as IAuthorizationConfigRepository
+builder.Services.AddIdentityHubClient(builder.Configuration);
+
+// Registers handlers and policies (reads config from the HTTP client)
+builder.Services.AddAuthorizationPolicies(builder.Configuration);
+```
+
+**4. Protect endpoints — identical to Model A**
+
+```csharp
+[Authorize(Policy = "CanDeleteOrders")]
+[HttpDelete("{id}")]
+public IActionResult Delete(int id) { ... }
+```
+
+**5. Manage config at runtime via IdentityHub.API admin endpoints**
+
+```bash
+# Add a new role with permissions
+curl -X POST https://your-identityhub-instance.example.com/api/authorization-config/roles \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "Auditor", "permissions": ["audit.view"] }'
+
+# Add a permission policy
+curl -X POST https://your-identityhub-instance.example.com/api/authorization-config/permission-policies \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "policyName": "CanViewAudit", "requiredPermission": "audit.view" }'
+```
+
+Changes take effect in external apps within `CacheSeconds` seconds — no restart required.
+
+---
+
+### Comparison
+
+|                            | Model A (standalone)        | Model B (connected)             |
+| -------------------------- | --------------------------- | ------------------------------- |
+| Config location            | `appsettings.json` per app  | Central IdentityHub DB          |
+| Network dependency         | None                        | IdentityHub.API must be running |
+| Multiple apps share config | No                          | Yes                             |
+| Runtime config changes     | Requires redeploy           | Within `CacheSeconds`           |
+| Good for                   | Single app / self-contained | Enterprise / many apps          |
+
+---
+
 ## 🏛️ Authorization Model
 
 ### Roles
