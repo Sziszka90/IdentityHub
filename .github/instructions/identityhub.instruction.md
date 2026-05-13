@@ -6,6 +6,7 @@
 
 **IdentityHub** is an enterprise-grade authentication and authorization service that sits between Azure Entra ID and your applications, providing tenant-aware identity management, role-based access control (RBAC), and permission-based authorization.
 
+
 ## 🎯 Core Purpose
 
 IdentityHub answers one critical question:
@@ -18,10 +19,10 @@ It acts as an **integration and decision layer** on top of Azure Entra ID, provi
 - ✅ Role and permission-based authorization
 - ✅ Multi-tenant identity management
 - ✅ Graph API integration for user and group data
-- ✅ Policy-driven access control
 - ✅ Audit logging and compliance
 
 ---
+
 
 # Architecture
 
@@ -29,30 +30,41 @@ It acts as an **integration and decision layer** on top of Azure Entra ID, provi
 ┌─────────────┐
 │ Application │
 └──────┬──────┘
-       │ "Can user X do Y?"
-       ▼
-┌─────────────────┐
-│  IdentityHub    │ ← Authentication, Authorization, Policy Engine
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Azure Entra ID  │ ← Identity Provider
-│  + Graph API    │
-└─────────────────┘
+    │
+    ▼
+┌──────────────────────────────┐
+│ IdentityHubClient NuGet pkg  │ ← Used by Application to call IdentityHub.API
+└────────────┬─────────────────┘
+          │ "Can user X do Y?"
+          ▼
+┌──────────────────────────────┐
+│        IdentityHub.API       │ ← Authentication, Authorization Engine
+└────────────┬─────────────────┘
+            │
+            ▼
+┌──────────────────────────────┐
+│      Azure Entra ID          │ ← Identity Provider
+│        + Graph API           │
+└──────────────────────────────┘
 ```
 
 **What IdentityHub IS:**
 - An authorization decision service
 - A Graph API integration layer
 - A tenant-aware permission resolver
-- A policy evaluation engine
+- A NuGet client package (`IdentityHubClient`) for easy integration with .NET applications
 
 **What IdentityHub is NOT:**
 - An identity provider (Entra ID handles that)
 - A custom login system
 - A password manager
 - A replacement for Azure AD
+
+**How the Client Package Works:**
+- The `IdentityHubClient` NuGet package is added to your application.
+- It provides a strongly-typed HTTP client and interface (`IIdentityHubClient`) to fetch roles, permissions, and group mappings from the central IdentityHub.API.
+- Register it in your app with `services.AddIdentityHubClient(configuration);`.
+- The application uses this client to answer authorization questions ("Can user X do Y?") by querying IdentityHub.API, which in turn integrates with Entra ID and Graph API.
 
 ---
 
@@ -69,7 +81,6 @@ It acts as an **integration and decision layer** on top of Azure Entra ID, provi
 - Intelligent caching with short TTL for performance
 - **Role-Based Access Control (RBAC)**: Admin, User, Viewer, etc.
 - **Group-to-Role Mapping**: Entra ID groups → application roles
-- **Policy-Based Authorization**: `[Authorize(Policy = "...")]`
 - Clean separation between authentication and authorization logic
 - Secured REST endpoints
 - Proper HTTP status codes (401 Unauthorized vs 403 Forbidden)
@@ -84,7 +95,6 @@ It acts as an **integration and decision layer** on top of Azure Entra ID, provi
 - Admin API
 
 ## Phase 3: Advanced & Differentiating Features
-- Policy Engine
 - Managed Identity & Secretless Authentication
 - Event-Driven Identity Synchronization
 - Admin UI (Angular)
@@ -98,9 +108,8 @@ It acts as an **integration and decision layer** on top of Azure Entra ID, provi
 | **Backend**        | .NET                         |
 | **Authentication** | Azure Entra ID (OIDC, JWT)   |
 | **Identity Data**  | Microsoft Graph API          |
-| **Authorization**  | Policy-based + RBAC          |
+| **Authorization**  | RBAC, Group & Permission     |
 | **Data Storage**   | Azure Cosmos DB / SQL Server |
-| **Caching**        | Azure Redis Cache            |
 | **Logging**        | Azure Application Insights   |
 | **Identity**       | Azure Managed Identity       |
 | **Frontend**       | Angular (Phase 3)            |
@@ -250,4 +259,4 @@ Each `Permission` is linked to one or more roles via `RolePermission`. For examp
 
 ---
 
-# For more details, see the main README.md in the project root.
+
