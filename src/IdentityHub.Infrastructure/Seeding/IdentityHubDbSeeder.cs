@@ -89,37 +89,6 @@ public static class AuthorizationDbSeeder
         await db.SaveChangesAsync();
         logger.LogInformation("Seeded {Count} group-role mappings", rolePermOptions.GroupToRoleMapping.Count);
 
-        // ── 3. Create Permission Policies ──
-        if (policyOptions?.PermissionPolicies is not null)
-        {
-            foreach (var (policyName, requiredPermission) in policyOptions.PermissionPolicies)
-            {
-                db.PermissionPolicies.Add(new PermissionPolicy
-                {
-                    PolicyName = policyName,
-                    RequiredPermission = requiredPermission
-                });
-            }
-
-            await db.SaveChangesAsync();
-            logger.LogInformation("Seeded {Count} permission policies", policyOptions.PermissionPolicies.Count);
-        }
-
-        // ── 4. Create Role Policies ──
-        if (policyOptions?.RolePolicies is not null)
-        {
-            foreach (var (policyName, requiredRoles) in policyOptions.RolePolicies)
-            {
-                db.RolePolicies.Add(new Domain.Entities.RolePolicy
-                {
-                    PolicyName = policyName,
-                    RequiredRoles = requiredRoles
-                });
-            }
-
-            await db.SaveChangesAsync();
-            logger.LogInformation("Seeded {Count} role policies", policyOptions.RolePolicies.Count);
-        }
 
         logger.LogInformation("Authorization database seeding complete");
     }

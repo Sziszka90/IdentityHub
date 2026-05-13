@@ -26,17 +26,12 @@ public class Role
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
-    /// Updated timestamp
-    /// </summary>
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-    /// <summary>
     /// Permissions of the role
     /// </summary>
-    public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+    public ICollection<RolePermission> RolePermissions { get; set; } = [];
 
     /// <summary>
     /// Group role mappings
     /// </summary>
-    public ICollection<GroupRoleMapping> GroupRoleMappings { get; set; } = new List<GroupRoleMapping>();
+    public ICollection<GroupRoleMapping> GroupRoleMappings { get; set; } = [];
 }

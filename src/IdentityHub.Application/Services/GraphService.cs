@@ -1,39 +1,89 @@
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Domain.Exceptions;
-using IdentityHub.Domain.Models;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 
 namespace IdentityHub.Application.Services;
 
 /// <summary>
-/// Service for Microsoft Graph API operations with caching
+/// Service for Microsoft Graph API operations with caching.
+///
+/// <para><b>SECURITY WARNING:</b> Caching user or group membership data can result in stale authorization information if changes occur in Azure AD (e.g., user removed from group, group deleted, etc.).
+/// For critical authorization decisions, prefer real-time checks or use very short cache durations (minutes, not hours/days).
+/// Always document the risk that cached data may not reflect immediate changes in Azure.</para>
 /// </summary>
+
 public class GraphService : IGraphService
 {
-    private readonly GraphServiceClient? _graphClient;
-    private readonly ICacheService _cacheService;
-    private readonly RedisCacheOptions _cacheOptions;
+    private readonly GraphServiceClient _graphClient;
     private readonly ILogger<GraphService> _logger;
-    private readonly bool _isAvailable;
 
     public GraphService(
-        GraphServiceClient? graphClient,
-        ICacheService cacheService,
-        IOptions<RedisCacheOptions> cacheOptions,
+        GraphServiceClient graphClient,
         ILogger<GraphService> logger)
     {
-        _graphClient = graphClient;
-        _cacheService = cacheService;
-        _cacheOptions = cacheOptions.Value;
-        _logger = logger;
-        _isAvailable = graphClient is not null;
+        _graphClient = graphClient ?? throw new ArgumentNullException("GraphClient is null");
+        _logger = logger ?? throw new ArgumentNullException("Logger is null");
+    }
 
-        if (!_isAvailable)
+    /// <summary>
+    /// Create a new user in Microsoft Graph
+    /// </summary>
+    /// <param name="user">User object to create</param>
+    /// <returns>The created User object</returns>
+    public async Task<User> CreateUserAsync(User user)
+    {
+        try
         {
-            _logger.LogWarning("Graph API client is not configured");
+            _logger.LogInformation("Creating user {UserPrincipalName} in Graph API", user.UserPrincipalName);
+            var createdUser = await _graphClient.Users.PostAsync(user);
+            return createdUser!;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating user {UserPrincipalName} in Graph API", user.UserPrincipalName);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Update an existing user in Microsoft Graph
+    /// </summary>
+    /// <param name="user">User object with updated fields</param>
+    /// <returns>The updated User object</returns>
+    public async Task<User> UpdateUserAsync(User user)
+    {
+        try
+        {
+            _logger.LogInformation("Updating user {UserId} in Graph API", user.Id);
+            var updatedUser = await _graphClient.Users[user.Id].PatchAsync(user);
+            // Microsoft Graph PATCH returns 204 No Content, so fetch the updated user
+            var fetchedUser = await _graphClient.Users[user.Id].GetAsync();
+            return fetchedUser!;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating user {UserId} in Graph API", user.Id);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Delete a user from Microsoft Graph
+    /// </summary>
+    /// <param name="userId">ID of the user to delete</param>
+    public async Task DeleteUserAsync(string userId)
+    {
+        try
+        {
+            _logger.LogInformation("Deleting user {UserId} from Graph API", userId);
+            await _graphClient.Users[userId].DeleteAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting user {UserId} from Graph API", userId);
+            throw;
         }
     }
 
@@ -43,33 +93,17 @@ public class GraphService : IGraphService
     /// <param name="userId">The unique identifier of the user</param>
     /// <returns>User</returns>
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
+    /// <remarks>
+    /// SECURITY WARNING: Caching user profile data can result in stale information if the user is updated or removed in Azure AD.
+    /// For critical authorization decisions, prefer real-time checks or use very short cache durations.
+    /// </remarks>
     public async Task<User?> GetUserAsync(string userId)
     {
-        if (!_isAvailable || _graphClient is null)
-        {
-            throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
-        }
-
-        var cacheKey = $"graph:user:{userId}";
-        var cached = await _cacheService.GetAsync<User>(cacheKey);
-        if (cached is not null)
-        {
-            _logger.LogDebug("Cache hit for user {UserId}", userId);
-            return cached;
-        }
-
         try
         {
             _logger.LogInformation("Fetching user {UserId} from Graph API", userId);
-            var user = await _graphClient.Users[userId].GetAsync();
 
-            if (user is not null)
-            {
-                await _cacheService.SetAsync(
-                    cacheKey,
-                    user,
-                    _cacheOptions.GraphDataExpirationSeconds);
-            }
+            var user = await _graphClient.Users[userId].GetAsync();
 
             return user;
         }
@@ -86,29 +120,17 @@ public class GraphService : IGraphService
     }
 
     /// <summary>
-    /// Get user's group memberships (with caching)
+    /// Get user's group memberships
     /// </summary>
     /// <param name="userId">The unique identifier of the user</param>
     /// <returns>List of group IDs the user belongs to</returns>
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<string>> GetUserGroupsAsync(string userId)
     {
-        if (!_isAvailable || _graphClient is null)
-        {
-            throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
-        }
-
-        var cacheKey = $"graph:user:{userId}:groups";
-        var cached = await _cacheService.GetAsync<List<string>>(cacheKey);
-        if (cached is not null)
-        {
-            _logger.LogDebug("Cache hit for user {UserId} groups", userId);
-            return cached;
-        }
-
         try
         {
             _logger.LogInformation("Fetching groups for user {UserId} from Graph API", userId);
+
             var groups = new List<string>();
 
             var memberOf = await _graphClient.Users[userId].MemberOf.GetAsync();
@@ -123,12 +145,6 @@ public class GraphService : IGraphService
                     }
                 }
             }
-
-            await _cacheService.SetAsync(
-                cacheKey,
-                groups,
-                _cacheOptions.GraphDataExpirationSeconds);
-
             return groups;
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
@@ -151,22 +167,10 @@ public class GraphService : IGraphService
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<string>> GetUserTransitiveGroupsAsync(string userId)
     {
-        if (!_isAvailable || _graphClient is null)
-        {
-            throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
-        }
-
-        var cacheKey = $"graph:user:{userId}:transitive-groups";
-        var cached = await _cacheService.GetAsync<List<string>>(cacheKey);
-        if (cached is not null)
-        {
-            _logger.LogDebug("Cache hit for user {UserId} transitive groups", userId);
-            return cached;
-        }
-
         try
         {
             _logger.LogInformation("Fetching transitive groups for user {UserId} from Graph API", userId);
+
             var groups = new List<string>();
 
             var memberOf = await _graphClient.Users[userId].TransitiveMemberOf.GetAsync();
@@ -181,12 +185,6 @@ public class GraphService : IGraphService
                     }
                 }
             }
-
-            await _cacheService.SetAsync(
-                cacheKey,
-                groups,
-                _cacheOptions.GraphDataExpirationSeconds);
-
             return groups;
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
@@ -209,31 +207,11 @@ public class GraphService : IGraphService
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<Group?> GetGroupAsync(string groupId)
     {
-        if (!_isAvailable || _graphClient is null)
-        {
-            throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
-        }
-
-        var cacheKey = $"graph:group:{groupId}";
-        var cached = await _cacheService.GetAsync<Group>(cacheKey);
-        if (cached is not null)
-        {
-            _logger.LogDebug("Cache hit for group {GroupId}", groupId);
-            return cached;
-        }
-
         try
         {
             _logger.LogInformation("Fetching group {GroupId} from Graph API", groupId);
-            var group = await _graphClient.Groups[groupId].GetAsync();
 
-            if (group is not null)
-            {
-                await _cacheService.SetAsync(
-                    cacheKey,
-                    group,
-                    _cacheOptions.RolePermissionsExpirationSeconds);
-            }
+            var group = await _graphClient.Groups[groupId].GetAsync();
 
             return group;
         }
@@ -258,19 +236,15 @@ public class GraphService : IGraphService
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<User>> GetUsersAsync(int top = 100, int skip = 0)
     {
-        if (!_isAvailable || _graphClient is null)
-        {
-            throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
-        }
-
         try
         {
             _logger.LogInformation("Fetching users from Graph API (top: {Top}, skip: {Skip})", top, skip);
 
             var url = $"https://graph.microsoft.com/v1.0/users?$top={top}&$skip={skip}&$select=id,displayName,mail,userPrincipalName";
+
             var users = await _graphClient.Users.WithUrl(url).GetAsync();
 
-            return users?.Value?.ToList() ?? new List<User>();
+            return users?.Value?.ToList() ?? [];
         }
         catch (Exception ex)
         {
@@ -287,22 +261,10 @@ public class GraphService : IGraphService
     /// <exception cref="InvalidOperationException">Graph API is not configured</exception>
     public async Task<List<string>> GetGroupMembersAsync(string groupId)
     {
-        if (!_isAvailable || _graphClient is null)
-        {
-            throw new InvalidOperationException("Graph API is not configured. Check EntraId settings.");
-        }
-
-        var cacheKey = $"graph:group:{groupId}:members";
-        var cached = await _cacheService.GetAsync<List<string>>(cacheKey);
-        if (cached is not null)
-        {
-            _logger.LogDebug("Cache hit for group {GroupId} members", groupId);
-            return cached;
-        }
-
         try
         {
             _logger.LogInformation("Fetching members for group {GroupId} from Graph API", groupId);
+
             var members = new List<string>();
 
             var groupMembers = await _graphClient.Groups[groupId].Members.GetAsync();
@@ -317,12 +279,6 @@ public class GraphService : IGraphService
                     }
                 }
             }
-
-            await _cacheService.SetAsync(
-                cacheKey,
-                members,
-                _cacheOptions.GraphDataExpirationSeconds);
-
             return members;
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
@@ -343,11 +299,6 @@ public class GraphService : IGraphService
     /// <returns>True if Graph API is configured and accessible, false otherwise</returns>
     public async Task<bool> IsAvailableAsync()
     {
-        if (!_isAvailable || _graphClient is null)
-        {
-            return false;
-        }
-
         try
         {
             await _graphClient.Users.GetAsync(config =>
@@ -360,6 +311,106 @@ public class GraphService : IGraphService
         {
             _logger.LogError(ex, "Graph API availability check failed");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Create a new group in Microsoft Graph (Azure AD)
+    /// </summary>
+    /// <param name="displayName">Display name of the group</param>
+    /// <param name="mailNickname">Mail nickname (unique alias)</param>
+    /// <returns>The created Group object</returns>
+    public async Task<Group> CreateGroupAsync(string displayName, string mailNickname)
+    {
+        try
+        {
+            _logger.LogInformation("Creating group {DisplayName} in Graph API", displayName);
+            var group = new Group
+            {
+                DisplayName = displayName,
+                MailEnabled = false,
+                MailNickname = mailNickname,
+                SecurityEnabled = true,
+                GroupTypes = []
+            };
+            var createdGroup = await _graphClient.Groups.PostAsync(group);
+            return createdGroup!;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating group {DisplayName} in Graph API", displayName);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Update an existing group in Microsoft Graph (Azure AD)
+    /// </summary>
+    /// <param name="groupId">ID of the group to update</param>
+    /// <param name="displayName">New display name</param>
+    /// <param name="mailNickname">New mail nickname</param>
+    /// <returns>The updated Group object</returns>
+    public async Task<Group> UpdateGroupAsync(string groupId, string displayName, string mailNickname)
+    {
+        try
+        {
+            _logger.LogInformation("Updating group {GroupId} in Graph API", groupId);
+            var group = new Group
+            {
+                DisplayName = displayName,
+                MailNickname = mailNickname
+            };
+            await _graphClient.Groups[groupId].PatchAsync(group);
+            var updatedGroup = await _graphClient.Groups[groupId].GetAsync();
+            return updatedGroup!;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating group {GroupId} in Graph API", groupId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Delete a group from Microsoft Graph (Azure AD)
+    /// </summary>
+    /// <param name="groupId">ID of the group to delete</param>
+    public async Task DeleteGroupAsync(string groupId)
+    {
+        try
+        {
+            _logger.LogInformation("Deleting group {GroupId} from Graph API", groupId);
+            await _graphClient.Groups[groupId].DeleteAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting group {GroupId} from Graph API", groupId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Query groups in Microsoft Graph (Azure AD) by display name (optional)
+    /// </summary>
+    /// <param name="displayName">Display name to filter by (optional)</param>
+    /// <returns>List of matching groups</returns>
+    public async Task<List<Group>> QueryGroupsAsync(string? displayName = null)
+    {
+        try
+        {
+            _logger.LogInformation("Querying groups from Graph API. Filter: {DisplayName}", displayName);
+            var query = _graphClient.Groups;
+            if (!string.IsNullOrEmpty(displayName))
+            {
+                query = query.WithUrl($"https://graph.microsoft.com/v1.0/groups?$filter=displayName eq '{displayName}'");
+            }
+            var result = await query.GetAsync();
+            return result?.Value?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error querying groups from Graph API");
+            throw;
         }
     }
 }

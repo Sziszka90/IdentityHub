@@ -16,25 +16,19 @@ namespace IdentityHub.Application.Services;
 public class PermissionService : IPermissionService
 {
     private readonly RolePermissionOptions _options;
-    private readonly ICacheService _cacheService;
-    private readonly RedisCacheOptions _cacheOptions;
     private readonly ILogger<PermissionService> _logger;
     private readonly IPermissionsRepository _permissionsRepository;
     private readonly IRolesRepository _rolesRepository;
-    private readonly IIdentityHubClient _client;
+    private readonly IIdentityHubClient? _client;
 
     public PermissionService(
         IOptions<RolePermissionOptions> options,
-        ICacheService cacheService,
-        IOptions<RedisCacheOptions> cacheOptions,
         ILogger<PermissionService> logger,
         IPermissionsRepository permissionsRepository,
         IRolesRepository rolesRepository,
-        IIdentityHubClient client)
+        IIdentityHubClient? client = null)
     {
         _options = options.Value;
-        _cacheService = cacheService;
-        _cacheOptions = cacheOptions.Value;
         _logger = logger;
         _permissionsRepository = permissionsRepository;
         _rolesRepository = rolesRepository;
@@ -83,23 +77,10 @@ public class PermissionService : IPermissionService
 
         foreach (string role in roles)
         {
-            var cacheKey = $"role:{role}:permissions";
-            var cachedPermissions = await _cacheService.GetAsync<List<string>>(cacheKey);
-
-            if (cachedPermissions is not null)
-            {
-                _logger.LogDebug("Cache hit for role {Role} permissions", role);
-                foreach (var permission in cachedPermissions)
-                {
-                    permissions.Add(permission);
-                }
-                continue;
-            }
-
             List<string>? rolePermissions = null;
 
             // DB first, then config fallback
-            if (rolePermissions is not null && rolePermissionsMapping!.TryGetValue(role, out var dbPerms))
+            if (rolePermissionsMapping is not null && rolePermissionsMapping.TryGetValue(role, out var dbPerms))
             {
                 rolePermissions = dbPerms;
                 _logger.LogDebug("Resolved permissions for role {Role} from database", role);
@@ -116,11 +97,6 @@ public class PermissionService : IPermissionService
                 {
                     permissions.Add(permission);
                 }
-
-                _ = _cacheService.SetAsync(
-                    cacheKey,
-                    rolePermissions,
-                    _cacheOptions.RolePermissionsExpirationSeconds);
             }
         }
 

@@ -27,7 +27,7 @@ public class AuthorizationConfigController : ControllerBase
     }
 
     /// <summary>
-    /// Get the complete authorization configuration snapshot.
+    /// Get the complete authorization configuration snapshot (roles, permissions, group-role mappings).
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(AuthorizationConfigResponse), StatusCodes.Status200OK)]
@@ -35,15 +35,11 @@ public class AuthorizationConfigController : ControllerBase
     {
         var rolePerms = await _service.GetAllRolePermissionsAsync(ct);
         var groupMappings = await _service.GetGroupToRoleDictionaryAsync(ct);
-        var permPolicies = await _service.GetAllPermissionPoliciesAsync(ct);
-        var rolePolicies = await _service.GetAllRolePoliciesAsync(ct);
 
         return Ok(new AuthorizationConfigResponse
         {
             RolePermissions = rolePerms,
-            GroupToRoleMapping = groupMappings,
-            PermissionPolicies = permPolicies.ToDictionary(p => p.PolicyName, p => p.RequiredPermission),
-            RolePolicies = rolePolicies.ToDictionary(p => p.PolicyName, p => p.RequiredRoles)
+            GroupToRoleMapping = groupMappings
         });
     }
 
@@ -230,155 +226,5 @@ public class AuthorizationConfigController : ControllerBase
         return NoContent();
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  Permission Policies
-    // ══════════════════════════════════════════════════════════════
 
-    /// <summary>Get all permission policies.</summary>
-    [HttpGet("permission-policies")]
-    [ProducesResponseType(typeof(List<PermissionPolicyResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetPermissionPolicies(CancellationToken ct)
-    {
-        var policies = await _service.GetAllPermissionPoliciesAsync(ct);
-        return Ok(policies.Select(p => new PermissionPolicyResponse
-        {
-            Id = p.Id,
-            PolicyName = p.PolicyName,
-            RequiredPermission = p.RequiredPermission,
-            CreatedAt = p.CreatedAt,
-            UpdatedAt = p.UpdatedAt
-        }));
-    }
-
-    /// <summary>Create a permission policy.</summary>
-    [HttpPost("permission-policies")]
-    [ProducesResponseType(typeof(PermissionPolicyResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> CreatePermissionPolicy([FromBody] CreatePermissionPolicyRequest request, CancellationToken ct)
-    {
-        var policy = await _service.CreatePermissionPolicyAsync(request.PolicyName, request.RequiredPermission, ct);
-        if (policy is null)
-            return Conflict(new { message = $"Permission policy '{request.PolicyName}' already exists" });
-
-        _logger.LogInformation("Created permission policy {Name}", request.PolicyName);
-
-        return CreatedAtAction(nameof(GetPermissionPolicies), null, new PermissionPolicyResponse
-        {
-            Id = policy.Id,
-            PolicyName = policy.PolicyName,
-            RequiredPermission = policy.RequiredPermission,
-            CreatedAt = policy.CreatedAt,
-            UpdatedAt = policy.UpdatedAt
-        });
-    }
-
-    /// <summary>Update a permission policy.</summary>
-    [HttpPut("permission-policies/{id:int}")]
-    [ProducesResponseType(typeof(PermissionPolicyResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdatePermissionPolicy(int id, [FromBody] UpdatePermissionPolicyRequest request, CancellationToken ct)
-    {
-        var policy = await _service.UpdatePermissionPolicyAsync(id, request.RequiredPermission, ct);
-        if (policy is null) return NotFound(new { message = $"Permission policy with id {id} not found" });
-
-        _logger.LogInformation("Updated permission policy {Id}", id);
-
-        return Ok(new PermissionPolicyResponse
-        {
-            Id = policy.Id,
-            PolicyName = policy.PolicyName,
-            RequiredPermission = policy.RequiredPermission,
-            CreatedAt = policy.CreatedAt,
-            UpdatedAt = policy.UpdatedAt
-        });
-    }
-
-    /// <summary>Delete a permission policy.</summary>
-    [HttpDelete("permission-policies/{id:int}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeletePermissionPolicy(int id, CancellationToken ct)
-    {
-        var deleted = await _service.DeletePermissionPolicyAsync(id, ct);
-        if (!deleted) return NotFound(new { message = $"Permission policy with id {id} not found" });
-
-        _logger.LogInformation("Deleted permission policy {Id}", id);
-        return NoContent();
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  Role Policies
-    // ══════════════════════════════════════════════════════════════
-
-    /// <summary>Get all role policies.</summary>
-    [HttpGet("role-policies")]
-    [ProducesResponseType(typeof(List<RolePolicyResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetRolePolicies(CancellationToken ct)
-    {
-        var policies = await _service.GetAllRolePoliciesAsync(ct);
-        return Ok(policies.Select(p => new RolePolicyResponse
-        {
-            Id = p.Id,
-            PolicyName = p.PolicyName,
-            RequiredRoles = p.RequiredRoles.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList(),
-            CreatedAt = p.CreatedAt,
-            UpdatedAt = p.UpdatedAt
-        }));
-    }
-
-    /// <summary>Create a role policy.</summary>
-    [HttpPost("role-policies")]
-    [ProducesResponseType(typeof(RolePolicyResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> CreateRolePolicy([FromBody] CreateRolePolicyRequest request, CancellationToken ct)
-    {
-        var policy = await _service.CreateRolePolicyAsync(request.PolicyName, request.RequiredRoles, ct);
-        if (policy is null)
-            return Conflict(new { message = $"Role policy '{request.PolicyName}' already exists" });
-
-        _logger.LogInformation("Created role policy {Name}", request.PolicyName);
-
-        return CreatedAtAction(nameof(GetRolePolicies), null, new RolePolicyResponse
-        {
-            Id = policy.Id,
-            PolicyName = policy.PolicyName,
-            RequiredRoles = request.RequiredRoles,
-            CreatedAt = policy.CreatedAt,
-            UpdatedAt = policy.UpdatedAt
-        });
-    }
-
-    /// <summary>Update a role policy.</summary>
-    [HttpPut("role-policies/{id:int}")]
-    [ProducesResponseType(typeof(RolePolicyResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateRolePolicy(int id, [FromBody] UpdateRolePolicyRequest request, CancellationToken ct)
-    {
-        var policy = await _service.UpdateRolePolicyAsync(id, request.RequiredRoles, ct);
-        if (policy is null) return NotFound(new { message = $"Role policy with id {id} not found" });
-
-        _logger.LogInformation("Updated role policy {Id}", id);
-
-        return Ok(new RolePolicyResponse
-        {
-            Id = policy.Id,
-            PolicyName = policy.PolicyName,
-            RequiredRoles = request.RequiredRoles,
-            CreatedAt = policy.CreatedAt,
-            UpdatedAt = policy.UpdatedAt
-        });
-    }
-
-    /// <summary>Delete a role policy.</summary>
-    [HttpDelete("role-policies/{id:int}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteRolePolicy(int id, CancellationToken ct)
-    {
-        var deleted = await _service.DeleteRolePolicyAsync(id, ct);
-        if (!deleted) return NotFound(new { message = $"Role policy with id {id} not found" });
-
-        _logger.LogInformation("Deleted role policy {Id}", id);
-        return NoContent();
-    }
 }

@@ -40,27 +40,4 @@ public interface IAuthorizationConfigService
 
     Task<bool> DeleteGroupMappingAsync(int id, CancellationToken ct = default);
 
-    // ── Permission Policies ──────────────────────────────────────────────
-
-    Task<List<PermissionPolicy>> GetAllPermissionPoliciesAsync(CancellationToken ct = default);
-
-    /// <summary>Creates a permission policy. Returns null if the name is already taken.</summary>
-    Task<PermissionPolicy?> CreatePermissionPolicyAsync(string policyName, string requiredPermission, CancellationToken ct = default);
-
-    /// <summary>Updates a permission policy's required permission. Returns null if the policy does not exist.</summary>
-    Task<PermissionPolicy?> UpdatePermissionPolicyAsync(int id, string requiredPermission, CancellationToken ct = default);
-
-    Task<bool> DeletePermissionPolicyAsync(int id, CancellationToken ct = default);
-
-    // ── Role Policies ────────────────────────────────────────────────────
-
-    Task<List<RolePolicy>> GetAllRolePoliciesAsync(CancellationToken ct = default);
-
-    /// <summary>Creates a role policy. Returns null if the name is already taken.</summary>
-    Task<RolePolicy?> CreateRolePolicyAsync(string policyName, List<string> requiredRoles, CancellationToken ct = default);
-
-    /// <summary>Updates a role policy's required roles. Returns null if the policy does not exist.</summary>
-    Task<RolePolicy?> UpdateRolePolicyAsync(int id, List<string> requiredRoles, CancellationToken ct = default);
-
-    Task<bool> DeleteRolePolicyAsync(int id, CancellationToken ct = default);
 }

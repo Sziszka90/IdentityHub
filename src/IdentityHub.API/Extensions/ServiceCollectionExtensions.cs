@@ -61,7 +61,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantContextService, TenantContextService>();
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<IGraphService, GraphService>();
-        services.AddSingleton<ICacheService, CacheService>();
         services.AddScoped<IAuthorizationConfigService, AuthorizationConfigService>();
 
         return services;

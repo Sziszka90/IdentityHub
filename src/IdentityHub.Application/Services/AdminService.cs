@@ -16,26 +16,23 @@ public class AdminService : IAdminService
     private readonly IPermissionService _permissionService;
     private readonly IGraphService _graphService;
     private readonly RolePermissionOptions _rolePermissionOptions;
-    private readonly ICacheService _cacheService;
-    private readonly RedisCacheOptions _cacheOptions;
     private readonly ILogger<AdminService> _logger;
+    private readonly IRolesRepository _rolesRepository;
 
     public AdminService(
         ITenantContextService tenantContextService,
         IPermissionService permissionService,
         IGraphService graphService,
-        ICacheService cacheService,
-        IOptions<RedisCacheOptions> cacheOptions,
         IOptions<RolePermissionOptions> rolePermissionOptions,
-        ILogger<AdminService> logger)
+        ILogger<AdminService> logger,
+        IRolesRepository rolesRepository)
     {
         _tenantContextService = tenantContextService;
         _permissionService = permissionService;
         _graphService = graphService;
-        _cacheService = cacheService;
-        _cacheOptions = cacheOptions.Value;
         _rolePermissionOptions = rolePermissionOptions.Value;
         _logger = logger;
+        _rolesRepository = rolesRepository;
     }
 
     /// <summary>
@@ -66,12 +63,10 @@ public class AdminService : IAdminService
                 }
 
                 var groupIds = await _graphService.GetUserGroupsAsync(graphUser.Id);
+                var roles = await _permissionService.MapGroupsToRoles(groupIds);
+                var permissions = await _permissionService.ResolvePermissions(roles);
 
-                var roles = _permissionService.MapGroupsToRoles(groupIds);
-
-                var permissions = _permissionService.ResolvePermissions(roles);
-
-                userPermissions.Add(new UserPermissionsDto
+                var userPermission = new UserPermissionsDto
                 {
                     UserId = graphUser.Id,
                     Email = graphUser.Mail ?? graphUser.UserPrincipalName ?? "",
@@ -80,7 +75,9 @@ public class AdminService : IAdminService
                     Groups = groupIds,
                     Roles = roles,
                     Permissions = permissions
-                });
+                };
+
+                userPermissions.Add(userPermission);
             }
 
             return userPermissions;
@@ -116,15 +113,7 @@ public class AdminService : IAdminService
             throw new InvalidTenantException("Valid tenant context is required to access user permissions");
         }
 
-        var cacheKey = $"user:{userId}:permissions:{tenantContext.TenantId}";
-        var cached = await _cacheService.GetAsync<UserPermissionsDto>(cacheKey);
-        if (cached is not null)
-        {
-            _logger.LogDebug("Cache hit for user {UserId} permissions", userId);
-            return cached;
-        }
-
-        _logger.LogInformation("Cache miss - Getting permissions for user {UserId} in tenant {TenantId}",
+        _logger.LogInformation("Getting permissions for user {UserId} in tenant {TenantId}",
             userId, tenantContext.TenantId);
 
         try
@@ -138,9 +127,9 @@ public class AdminService : IAdminService
 
             var groupIds = await _graphService.GetUserGroupsAsync(userId);
 
-            var roles = _permissionService.MapGroupsToRoles(groupIds);
+            var roles = await _permissionService.MapGroupsToRoles(groupIds);
 
-            var permissions = _permissionService.ResolvePermissions(roles);
+            var permissions = await _permissionService.ResolvePermissions(roles);
 
             var userPermissions = new UserPermissionsDto
             {
@@ -152,11 +141,6 @@ public class AdminService : IAdminService
                 Roles = roles,
                 Permissions = permissions
             };
-
-            await _cacheService.SetAsync(
-                cacheKey,
-                userPermissions,
-                _cacheOptions.UserPermissionsExpirationSeconds);
 
             return userPermissions;
         }
@@ -208,11 +192,11 @@ public class AdminService : IAdminService
                 var group = await _graphService.GetGroupAsync(groupId);
                 var groupName = group?.DisplayName ?? groupId;
 
-                var roles = _permissionService.MapGroupsToRoles([groupId]);
+                var roles = await _permissionService.MapGroupsToRoles([groupId]);
                 var role = roles.FirstOrDefault();
 
                 var permissions = role != null
-                    ? _permissionService.ResolvePermissions([role])
+                    ? await _permissionService.ResolvePermissions([role])
                     : [];
 
                 groupResolutions.Add(new GroupResolution
@@ -227,6 +211,7 @@ public class AdminService : IAdminService
                 {
                     allRoles.Add(role);
                 }
+
                 foreach (var perm in permissions)
                 {
                     allPermissions.Add(perm);
@@ -258,39 +243,75 @@ public class AdminService : IAdminService
     /// <summary>
     /// Get all roles with their permissions
     /// </summary>
-    public List<RolePermissionsDto> GetAllRolesWithPermissions()
+    public async Task<List<RolePermissionsDto>> GetAllRolesWithPermissionsAsync()
     {
+        // Fetch all roles from the DB (or remote client) via IPermissionService
         var roles = new List<RolePermissionsDto>();
-
-        foreach (var (roleName, permissions) in _rolePermissionOptions.RolePermissions)
+        try
         {
-            roles.Add(new RolePermissionsDto
+            // Get all role names from the DB/config
+            var allRolePermissions = await _permissionService.ResolvePermissions(_rolePermissionOptions.RolePermissions.Keys);
+            foreach (var roleName in _rolePermissionOptions.RolePermissions.Keys)
             {
-                RoleName = roleName,
-                Permissions = [.. permissions]
-            });
+                var permissions = await _permissionService.ResolvePermissions([roleName]);
+                roles.Add(new RolePermissionsDto
+                {
+                    RoleName = roleName,
+                    Permissions = permissions
+                });
+            }
+            _logger.LogInformation("Retrieved {Count} roles with permissions (from DB or remote)", roles.Count);
         }
-
-        _logger.LogInformation("Retrieved {Count} roles with permissions", roles.Count);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch roles with permissions from DB or remote, falling back to options");
+            // Fallback to options
+            foreach (var (roleName, permissions) in _rolePermissionOptions.RolePermissions)
+            {
+                roles.Add(new RolePermissionsDto
+                {
+                    RoleName = roleName,
+                    Permissions = [.. permissions]
+                });
+            }
+        }
         return roles;
     }
 
     /// <summary>
     /// Get permissions for a specific role
     /// </summary>
-    public RolePermissionsDto? GetRolePermissions(string roleName)
+    public async Task<RolePermissionsDto?> GetRolePermissionsAsync(string roleName)
     {
         if (string.IsNullOrEmpty(roleName))
         {
             return null;
         }
 
-        if (_rolePermissionOptions.RolePermissions.TryGetValue(roleName, out var permissions))
+        try
+        {
+            var permissions = await _permissionService.ResolvePermissions([roleName]);
+            if (permissions != null && permissions.Count > 0)
+            {
+                return new RolePermissionsDto
+                {
+                    RoleName = roleName,
+                    Permissions = permissions
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch permissions for role {RoleName} from DB or remote, falling back to options", roleName);
+        }
+
+        // Fallback to options
+        if (_rolePermissionOptions.RolePermissions.TryGetValue(roleName, out var optionPerms))
         {
             return new RolePermissionsDto
             {
                 RoleName = roleName,
-                Permissions = [.. permissions]
+                Permissions = [.. optionPerms]
             };
         }
 
@@ -310,20 +331,47 @@ public class AdminService : IAdminService
             return null;
         }
 
+        // Check config first
         if (_rolePermissionOptions.RolePermissions.ContainsKey(roleName))
         {
-            _logger.LogWarning("Role {RoleName} already exists", roleName);
+            _logger.LogWarning("Role {RoleName} already exists in config", roleName);
             return null;
         }
 
-        _logger.LogInformation("Created role {RoleName} with {Count} permissions", roleName, permissions.Count);
+        // Check DB
+        var existingRole = await _rolesRepository.GetRoleByNameAsync(roleName);
+        if (existingRole != null)
+        {
+            _logger.LogWarning("Role {RoleName} already exists in DB", roleName);
+            return null;
+        }
 
-        await Task.CompletedTask;
+        // Create role entity
+        var newRole = new IdentityHub.Domain.Entities.Role
+        {
+            Name = roleName,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            // Permissions will be added below
+        };
+
+        // Map permissions to RolePermission entities
+        foreach (var perm in permissions)
+        {
+            newRole.RolePermissions.Add(new IdentityHub.Domain.Entities.RolePermission
+            {
+                Permission = new IdentityHub.Domain.Entities.Permission { Name = perm }
+            });
+        }
+
+        var createdRole = await _rolesRepository.CreateRoleAsync(newRole);
+
+        _logger.LogInformation("Created role {RoleName} with {Count} permissions in DB", roleName, permissions.Count);
 
         return new RolePermissionsDto
         {
-            RoleName = roleName,
-            Permissions = permissions
+            RoleName = createdRole.Name,
+            Permissions = createdRole.RolePermissions.Select(rp => rp.Permission.Name).ToList()
         };
     }
 
@@ -338,20 +386,33 @@ public class AdminService : IAdminService
             return null;
         }
 
-        if (!_rolePermissionOptions.RolePermissions.ContainsKey(roleName))
+        // Check DB for role
+        var existingRole = await _rolesRepository.GetRoleByNameAsync(roleName);
+        if (existingRole == null)
         {
-            _logger.LogWarning("Role {RoleName} not found for update", roleName);
+            _logger.LogWarning("Role {RoleName} not found in DB for update", roleName);
             return null;
         }
 
-        _logger.LogInformation("Updated role {RoleName} with {Count} permissions", roleName, permissions.Count);
+        // Update permissions: clear and add new
+        existingRole.RolePermissions.Clear();
+        foreach (var perm in permissions)
+        {
+            existingRole.RolePermissions.Add(new IdentityHub.Domain.Entities.RolePermission
+            {
+                Permission = new IdentityHub.Domain.Entities.Permission { Name = perm }
+            });
+        }
+        existingRole.UpdatedAt = DateTime.UtcNow;
 
-        await Task.CompletedTask;
+        var updatedRole = await _rolesRepository.UpdateRoleAsync(existingRole);
+
+        _logger.LogInformation("Updated role {RoleName} with {Count} permissions in DB", roleName, permissions.Count);
 
         return new RolePermissionsDto
         {
-            RoleName = roleName,
-            Permissions = permissions
+            RoleName = updatedRole.Name,
+            Permissions = updatedRole.RolePermissions.Select(rp => rp.Permission.Name).ToList()
         };
     }
 
@@ -366,19 +427,24 @@ public class AdminService : IAdminService
             return false;
         }
 
-        if (!_rolePermissionOptions.RolePermissions.ContainsKey(roleName))
+        // Check DB for role
+        var existingRole = await _rolesRepository.GetRoleByNameAsync(roleName);
+        if (existingRole == null)
         {
-            _logger.LogWarning("Role {RoleName} not found for deletion", roleName);
+            _logger.LogWarning("Role {RoleName} not found in DB for deletion", roleName);
             return false;
         }
 
-        // In production, delete from database
-        // For now, we can't dynamically remove from options, so we'll simulate success
-        _logger.LogInformation("Deleted role {RoleName}", roleName);
-
-        await Task.CompletedTask;
-
-        return true;
+        var deleted = await _rolesRepository.DeleteRoleAsync(existingRole.Id);
+        if (deleted)
+        {
+            _logger.LogInformation("Deleted role {RoleName} from DB", roleName);
+        }
+        else
+        {
+            _logger.LogWarning("Failed to delete role {RoleName} from DB", roleName);
+        }
+        return deleted;
     }
 
     /// <summary>
@@ -399,42 +465,38 @@ public class AdminService : IAdminService
             return null;
         }
 
-        foreach (var role in roles)
+        // Fetch user from Graph API
+        var graphUser = await _graphService.GetUserAsync(userId);
+        if (graphUser is null)
         {
-            if (!_rolePermissionOptions.RolePermissions.ContainsKey(role))
-            {
-                _logger.LogWarning("Role {RoleName} not found", role);
-                return null;
-            }
+            _logger.LogWarning("User {UserId} not found in Graph API", userId);
+            return null;
         }
 
-        // In production:
-        // 1. Use Graph API to find groups mapped to these roles
-        // 2. Add user to those groups
-        // 3. Return updated user permissions
-
-        _logger.LogInformation("Assigned roles {Roles} to user {UserId}", string.Join(", ", roles), userId);
-
-        await Task.CompletedTask;
-
-        // Resolve permissions from roles
+        // Check all roles exist in DB and aggregate permissions in a single loop
         var allPermissions = new HashSet<string>();
         foreach (var role in roles)
         {
-            if (_rolePermissionOptions.RolePermissions.TryGetValue(role, out var permissions))
+            var dbRole = await _rolesRepository.GetRoleByNameAsync(role);
+            if (dbRole == null)
             {
-                foreach (var permission in permissions)
-                {
-                    allPermissions.Add(permission);
-                }
+                _logger.LogWarning("Role {RoleName} not found in DB", role);
+                return null;
+            }
+            foreach (var rp in dbRole.RolePermissions)
+            {
+                allPermissions.Add(rp.Permission.Name);
             }
         }
+
+        // In production: Use Graph API to add user to groups mapped to these roles
+        _logger.LogInformation("Assigned roles {Roles} to user {UserId} (simulated)", string.Join(", ", roles), userId);
 
         return new UserPermissionsDto
         {
             UserId = userId,
-            Email = "user@example.com",
-            DisplayName = "User", // Would come from Graph API
+            Email = graphUser.Mail ?? graphUser.UserPrincipalName ?? string.Empty,
+            DisplayName = graphUser.DisplayName ?? string.Empty,
             TenantId = tenantContext.TenantId,
             Groups = new List<string>(), // Would come from Graph API
             Roles = roles,

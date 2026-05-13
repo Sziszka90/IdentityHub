@@ -99,15 +99,15 @@ public class AdminController : ControllerBase
     [Authorize(Policy = "RequireAdminOrAgent")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public IActionResult GetRoles()
+    public async Task<IActionResult> GetRoles()
     {
         _logger.LogInformation("Admin requesting all roles");
 
-        var roles = _adminService.GetAllRolesWithPermissions();
+        var roles = await _adminService.GetAllRolesWithPermissionsAsync();
         return Ok(new
         {
             count = roles.Count,
-            roles = roles
+            roles
         });
     }
 
@@ -121,11 +121,11 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public IActionResult GetRolePermissions(string roleName)
+    public async Task<IActionResult> GetRolePermissions(string roleName)
     {
         _logger.LogInformation("Admin requesting permissions for role {RoleName}", roleName);
 
-        var rolePermissions = _adminService.GetRolePermissions(roleName);
+        var rolePermissions = await _adminService.GetRolePermissionsAsync(roleName);
         if (rolePermissions == null)
         {
             return NotFound(new { message = $"Role {roleName} not found" });

@@ -32,14 +32,14 @@ public interface IAdminService
     /// Get all roles with their permissions
     /// </summary>
     /// <returns>List of roles and permissions</returns>
-    List<RolePermissionsDto> GetAllRolesWithPermissions();
+    Task<List<RolePermissionsDto>> GetAllRolesWithPermissionsAsync();
 
     /// <summary>
     /// Get permissions for a specific role
     /// </summary>
     /// <param name="roleName">Role name</param>
     /// <returns>Role permissions or null if role not found</returns>
-    RolePermissionsDto? GetRolePermissions(string roleName);
+    Task<RolePermissionsDto?> GetRolePermissionsAsync(string roleName);
 
     /// <summary>
     /// Create a new role with permissions

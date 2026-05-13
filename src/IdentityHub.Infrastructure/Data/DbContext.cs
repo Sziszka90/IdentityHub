@@ -17,8 +17,6 @@ public class IdentityHubDbContext : DbContext
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<GroupRoleMapping> GroupRoleMappings => Set<GroupRoleMapping>();
-    public DbSet<PermissionPolicy> PermissionPolicies => Set<PermissionPolicy>();
-    public DbSet<RolePolicy> RolePolicies => Set<RolePolicy>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,24 +73,5 @@ public class IdentityHubDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // ── PermissionPolicy ──
-        modelBuilder.Entity<PermissionPolicy>(e =>
-        {
-            e.ToTable("PermissionPolicies");
-            e.HasKey(p => p.Id);
-            e.Property(p => p.PolicyName).HasMaxLength(200).IsRequired();
-            e.HasIndex(p => p.PolicyName).IsUnique();
-            e.Property(p => p.RequiredPermission).HasMaxLength(200).IsRequired();
-        });
-
-        // ── RolePolicy ──
-        modelBuilder.Entity<RolePolicy>(e =>
-        {
-            e.ToTable("RolePolicies");
-            e.HasKey(p => p.Id);
-            e.Property(p => p.PolicyName).HasMaxLength(200).IsRequired();
-            e.HasIndex(p => p.PolicyName).IsUnique();
-            e.Property(p => p.RequiredRoles).HasMaxLength(500).IsRequired();
-        });
     }
 }

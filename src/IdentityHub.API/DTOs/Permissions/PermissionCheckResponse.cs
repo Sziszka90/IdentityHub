@@ -1,4 +1,4 @@
-namespace IdentityHub.API.DTOs;
+namespace IdentityHub.API.DTOs.Permissions;
 
 /// <summary>
 /// Response for a permission check operation
