@@ -22,7 +22,7 @@ public interface IPermissionsRepository
     /// <param name="id">Database identifier of the permission.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The matching <see cref="Permission"/> or <c>null</c> if not found.</returns>
-    Task<Permission?> GetPermissionByIdAsync(int id, CancellationToken ct = default);
+    Task<Permission?> GetPermissionByIdAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
     /// Retrieves a permission by its unique name.
@@ -46,7 +46,7 @@ public interface IPermissionsRepository
     /// <param name="id">Identifier of the permission to delete.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns><c>true</c> if the permission was deleted; otherwise <c>false</c>.</returns>
-    Task<bool> DeletePermissionAsync(int id, CancellationToken ct = default);
+    Task<bool> DeletePermissionAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
     /// Get all permission names assigned to a role.

@@ -23,7 +23,7 @@ public class PermissionsRepository : IPermissionsRepository
             .OrderBy(p => p.Name)
             .ToListAsync(ct);
 
-    public async Task<Permission?> GetPermissionByIdAsync(int id, CancellationToken ct = default)
+    public async Task<Permission?> GetPermissionByIdAsync(Guid id, CancellationToken ct = default)
         => await _db.Permissions.FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public async Task<Permission?> GetPermissionByNameAsync(string name, CancellationToken ct = default)
@@ -36,7 +36,7 @@ public class PermissionsRepository : IPermissionsRepository
         return permission;
     }
 
-    public async Task<bool> DeletePermissionAsync(int id, CancellationToken ct = default)
+    public async Task<bool> DeletePermissionAsync(Guid id, CancellationToken ct = default)
     {
         var perm = await _db.Permissions.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (perm is null)
@@ -85,7 +85,6 @@ public class PermissionsRepository : IPermissionsRepository
             });
         }
 
-        role.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
     }
 

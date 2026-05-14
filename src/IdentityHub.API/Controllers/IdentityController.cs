@@ -28,11 +28,11 @@ public class IdentityController : ControllerBase
     [HttpGet("me")]
     [ProducesResponseType(typeof(UserContext), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public IActionResult GetCurrentUser()
+    public async Task<IActionResult> GetCurrentUser()
     {
         try
         {
-            var userContext = _userContextService.GetUserContext(User);
+            var userContext = await _userContextService.GetUserContext(User);
 
             if (!_userContextService.ValidateUserContext(userContext))
             {
@@ -60,9 +60,9 @@ public class IdentityController : ControllerBase
     [HttpGet("status")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public IActionResult GetAuthStatus()
+    public async Task<IActionResult> GetAuthStatus()
     {
-        var userContext = _userContextService.GetUserContext(User);
+        var userContext = await _userContextService.GetUserContext(User);
 
         return Ok(new
         {

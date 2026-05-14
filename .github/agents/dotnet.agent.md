@@ -7,6 +7,8 @@ description: Coding agent instructions for .NET and C# projects
 
 ## General Guidelines
 
+- Ensure all code is written to support code completion in modern IDEs (e.g., Visual Studio, VS Code, Rider).
+
 - Follow .NET and C# best practices for code structure, naming, and formatting.
 - Use PascalCase for class, method, and property names.
 - Use camelCase for local variables and parameters.

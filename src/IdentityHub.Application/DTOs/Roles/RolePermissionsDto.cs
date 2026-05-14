@@ -1,4 +1,4 @@
-namespace IdentityHub.API.DTOs.Roles;
+namespace IdentityHub.Application.DTOs.Roles;
 
 /// <summary>
 /// Represents a role and its permissions

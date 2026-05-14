@@ -5,7 +5,10 @@ namespace IdentityHub.Domain.Entities;
 /// </summary>
 public class GroupRoleMapping
 {
-    public int Id { get; set; }
+    /// <summary>
+    /// Unique ID
+    /// </summary>
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Azure AD group name or ID (e.g. "IdentityHub-Admins").
@@ -15,7 +18,7 @@ public class GroupRoleMapping
     /// <summary>
     /// Foreign key to the mapped role.
     /// </summary>
-    public int RoleId { get; set; }
+    public Guid RoleId { get; set; }
 
     /// <summary>
     /// The role where the group is mapped
@@ -25,5 +28,5 @@ public class GroupRoleMapping
     /// <summary>
     /// Created timestamp
     /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

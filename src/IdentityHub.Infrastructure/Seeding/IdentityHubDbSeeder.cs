@@ -20,7 +20,6 @@ public static class AuthorizationDbSeeder
         var db = scope.ServiceProvider.GetRequiredService<IdentityHubDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<IdentityHubDbContext>>();
         var rolePermOptions = scope.ServiceProvider.GetRequiredService<IOptions<RolePermissionOptions>>().Value;
-        var policyOptions = scope.ServiceProvider.GetService<IOptions<AuthorizationPoliciesOptions>>()?.Value;
 
         // Apply pending migrations
         await db.Database.MigrateAsync();
@@ -42,7 +41,7 @@ public static class AuthorizationDbSeeder
         {
             var role = new Role { Name = roleName };
             db.Roles.Add(role);
-            await db.SaveChangesAsync(); // flush to get role Id
+            await db.SaveChangesAsync();
 
             foreach (var permName in permissionNames)
             {

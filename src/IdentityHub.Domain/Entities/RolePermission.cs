@@ -6,9 +6,9 @@ namespace IdentityHub.Domain.Entities;
 public class RolePermission
 {
     /// <summary>
-    /// ID of the Role
+    /// Unique ID
     /// </summary>
-    public int RoleId { get; set; }
+    public Guid RoleId { get; set; }
 
     /// <summary>
     /// Role
@@ -16,9 +16,9 @@ public class RolePermission
     public Role Role { get; set; } = null!;
 
     /// <summary>
-    /// ID of the Permission
+    /// Unique ID
     /// </summary>
-    public int PermissionId { get; set; }
+    public Guid PermissionId { get; set; }
 
     /// <summary>
     /// Permission

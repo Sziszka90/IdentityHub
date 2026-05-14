@@ -17,13 +17,15 @@ public class UserContextService : IUserContextService
         IPermissionService permissionService,
         ILogger<UserContextService> logger)
     {
-        _permissionService = permissionService;
-        _logger = logger;
+        _permissionService = permissionService ?? throw new ArgumentNullException(nameof(permissionService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
-    /// Extract user context from JWT token claims
+    /// Extracts user context (identity, roles, permissions) from a claims principal.
     /// </summary>
+    /// <param name="claimsPrincipal">The authenticated user's claims principal.</param>
+    /// <returns>A populated <see cref="UserContext"/>; <see cref="UserContext.IsAuthenticated"/> is <c>false</c> if authentication failed.</returns>
     public async Task<UserContext> GetUserContext(ClaimsPrincipal claimsPrincipal)
     {
         if (claimsPrincipal?.Identity?.IsAuthenticated is not true)
@@ -58,12 +60,12 @@ public class UserContextService : IUserContextService
             .Where(c => c.Type == "groups")
             .Select(c => c.Value)];
 
-        var rolesFromGroups = await _permissionService.MapGroupsToRoles(userContext.Groups);
+        var rolesFromGroups = await _permissionService.MapGroupsToRolesAsync(userContext.Groups);
 
         var allRoles = tokenRoles.Concat(rolesFromGroups).Distinct().ToList();
         userContext.Roles = allRoles;
 
-        userContext.Permissions = await _permissionService.ResolvePermissions(allRoles);
+        userContext.Permissions = await _permissionService.ResolvePermissionsAsync(allRoles);
 
         userContext.Claims = claimsPrincipal.Claims
             .GroupBy(c => c.Type)
@@ -76,8 +78,10 @@ public class UserContextService : IUserContextService
     }
 
     /// <summary>
-    /// Validate that user context has required fields
+    /// Validates that the user context is complete and authenticated.
     /// </summary>
+    /// <param name="userContext">User context to validate.</param>
+    /// <returns><c>true</c> if the context is authenticated and contains a non-empty user ID and tenant ID; otherwise <c>false</c>.</returns>
     public bool ValidateUserContext(UserContext userContext)
     {
         return userContext.IsAuthenticated
@@ -86,8 +90,11 @@ public class UserContextService : IUserContextService
     }
 
     /// <summary>
-    /// Helper method to safely get claim values
+    /// Safely retrieves a single claim value from the claims principal.
     /// </summary>
+    /// <param name="principal">The claims principal to search.</param>
+    /// <param name="claimType">The claim type to look up.</param>
+    /// <returns>The claim value, or <c>null</c> if not present.</returns>
     private static string? GetClaimValue(ClaimsPrincipal principal, string claimType)
     {
         return principal.Claims.FirstOrDefault(c => c.Type == claimType)?.Value;

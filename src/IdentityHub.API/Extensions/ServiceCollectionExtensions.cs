@@ -3,7 +3,9 @@ using IdentityHub.Application.Services;
 using IdentityHub.Domain.Models;
 using IdentityHub.Infrastructure.Data;
 using IdentityHub.Infrastructure.Repositories;
+using IdentityHub.API.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 
@@ -52,16 +54,16 @@ public static class ServiceCollectionExtensions
         services.Configure<RolePermissionOptions>(
             configuration.GetSection(RolePermissionOptions.SectionName));
 
-        services.Configure<RedisCacheOptions>(
-            configuration.GetSection(RedisCacheOptions.SectionName));
-
         services.AddHttpContextAccessor();
+        services.AddSingleton<IAuthorizationHandler, RequirePermissionHandler>();
+        services.AddSingleton<IAuthorizationPolicyProvider, DynamicPermissionPolicyProvider>();
+        services.AddAuthorization();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IUserContextService, UserContextService>();
         services.AddScoped<ITenantContextService, TenantContextService>();
-        services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IGraphService, GraphService>();
-        services.AddScoped<IAuthorizationConfigService, AuthorizationConfigService>();
 
         return services;
     }
@@ -81,35 +83,6 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IRolesRepository, RolesRepository>();
         services.AddScoped<IPermissionsRepository, PermissionsRepository>();
-        services.AddScoped<IPermissionPoliciesRepository, PermissionPoliciesRepository>();
-        services.AddScoped<IRolePoliciesRepository, RolePoliciesRepository>();
-        services.AddScoped<IAuthorizationConfigRepository, AuthorizationConfigRepository>();
-
-        return services;
-    }
-
-    /// <summary>
-    /// Configure Redis distributed caching
-    /// </summary>
-    public static IServiceCollection AddRedisCache(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        var redisCacheOptions = configuration.GetSection(RedisCacheOptions.SectionName).Get<RedisCacheOptions>();
-
-        if (redisCacheOptions?.Enabled == true && !string.IsNullOrEmpty(redisCacheOptions.ConnectionString))
-        {
-            services.AddStackExchangeRedisCache(options =>
-            {
-                options.Configuration = redisCacheOptions.ConnectionString;
-                options.InstanceName = "IdentityHub:";
-            });
-        }
-        else
-        {
-            // Add a no-op distributed cache if Redis is not configured
-            services.AddDistributedMemoryCache();
-        }
 
         return services;
     }

@@ -21,6 +21,8 @@ builder.Services.AddRedisCache(builder.Configuration);
 
 builder.Services.AddControllers();
 
+builder.Services.AddAutoMapper(typeof(IdentityHub.API.Mapping.UserMappingProfile).Assembly);
+
 builder.Services.AddSwaggerDocumentation();
 
 builder.Services.AddCorsPolicy();
@@ -40,10 +42,11 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
 
+
 app.UseAuthentication();
-
+// Validate tenant context for every request
+app.UseMiddleware<TenantContextValidationMiddleware>();
 app.UseTenantIsolation();
-
 app.UseAuthorization();
 
 app.MapControllers();

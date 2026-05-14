@@ -1,4 +1,4 @@
-namespace IdentityHub.API.DTOs.Users;
+namespace IdentityHub.Application.DTOs.Users;
 
 /// <summary>
 /// Represents a user's effective permissions

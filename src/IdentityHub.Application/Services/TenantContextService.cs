@@ -13,9 +13,13 @@ public class TenantContextService : ITenantContextService
 
     public TenantContextService(IHttpContextAccessor httpContextAccessor)
     {
-        _httpContextAccessor = httpContextAccessor;
+        _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
     }
 
+    /// <summary>
+    /// Gets the current tenant context from the active HTTP request.
+    /// </summary>
+    /// <returns>The <see cref="TenantContext"/> for the current request, or an empty context if unavailable.</returns>
     public TenantContext GetTenantContext()
     {
         var httpContext = _httpContextAccessor.HttpContext;
@@ -33,6 +37,12 @@ public class TenantContextService : ITenantContextService
         return new TenantContext();
     }
 
+    /// <summary>
+    /// Checks whether the specified user belongs to the specified tenant.
+    /// </summary>
+    /// <param name="userId">The user's unique identifier.</param>
+    /// <param name="tenantId">The tenant's unique identifier.</param>
+    /// <returns><c>true</c> if the current context matches the given user and tenant; otherwise <c>false</c>.</returns>
     public bool UserBelongsToTenant(string userId, string tenantId)
     {
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(tenantId))

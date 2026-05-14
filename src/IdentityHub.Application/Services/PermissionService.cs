@@ -1,45 +1,39 @@
-using IdentityHub.Application.Client;
 using IdentityHub.Application.Interfaces;
-using IdentityHub.Domain.Models;
-using Microsoft.Extensions.Options;
+using IdentityHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace IdentityHub.Application.Services;
 
 /// <summary>
-/// Implementation of permission resolution service with caching.
-/// Resolution priority:
-///   1. <see cref="IIdentityHubClient"/> – remote IdentityHub.API (preferred for external apps).
-///   2. <see cref="IPermissionsRepository"/> – direct DB access (used inside IdentityHub.API itself).
-///   3. Appsettings-based <see cref="RolePermissionOptions"/> – static fallback.
+/// Service for resolving user permissions from roles and managing permission records.
+/// Uses direct database access via <see cref="IPermissionsRepository"/> and <see cref="IRolesRepository"/>.
 /// </summary>
 public class PermissionService : IPermissionService
 {
-    private readonly RolePermissionOptions _options;
     private readonly ILogger<PermissionService> _logger;
     private readonly IPermissionsRepository _permissionsRepository;
     private readonly IRolesRepository _rolesRepository;
-    private readonly IIdentityHubClient? _client;
 
     public PermissionService(
-        IOptions<RolePermissionOptions> options,
         ILogger<PermissionService> logger,
         IPermissionsRepository permissionsRepository,
-        IRolesRepository rolesRepository,
-        IIdentityHubClient? client = null)
+        IRolesRepository rolesRepository)
     {
-        _options = options.Value;
-        _logger = logger;
-        _permissionsRepository = permissionsRepository;
-        _rolesRepository = rolesRepository;
-        _client = client;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _permissionsRepository = permissionsRepository ?? throw new ArgumentNullException(nameof(permissionsRepository));
+        _rolesRepository = rolesRepository ?? throw new ArgumentNullException(nameof(rolesRepository));
     }
 
+    // -------------------------------------------------------------------------
+    // Resolution
+    // -------------------------------------------------------------------------
+
     /// <summary>
-    /// Resolve permissions for given roles (with caching).
-    /// Prefers <see cref="IIdentityHubClient"/> when registered; falls back to DB repo, then config.
+    /// Resolves the combined list of permission names for the given role names.
     /// </summary>
-    public async Task<List<string>> ResolvePermissions(IEnumerable<string> roles)
+    /// <param name="roles">Role names to resolve permissions for.</param>
+    /// <returns>Deduplicated list of permission names granted by any of the specified roles.</returns>
+    public async Task<List<string>> ResolvePermissionsAsync(IEnumerable<string> roles)
     {
         if (roles is null || !roles.Any())
         {
@@ -47,55 +41,27 @@ public class PermissionService : IPermissionService
         }
 
         Dictionary<string, List<string>>? rolePermissionsMapping = null;
-        if (_client is not null)
+        try
         {
-            try
-            {
-                rolePermissionsMapping = await _client.GetRolePermissionsAsync();
-                _logger.LogDebug("Resolved role-permissions from IdentityHub client");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to read role-permissions from IdentityHub client, falling back to DB/config");
-            }
+            rolePermissionsMapping = await _permissionsRepository.GetAllRolePermissionsAsync();
+            _logger.LogDebug("Resolved role-permissions from database");
         }
-
-        if (rolePermissionsMapping is null)
+        catch (Exception ex)
         {
-            try
-            {
-                rolePermissionsMapping = await _permissionsRepository.GetAllRolePermissionsAsync();
-                _logger.LogDebug("Resolved role-permissions from database");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to read role-permissions from DB, falling back to config");
-            }
+            _logger.LogWarning(ex, "Failed to read role-permissions from DB");
         }
 
         var permissions = new HashSet<string>();
-
-        foreach (string role in roles)
+        if (rolePermissionsMapping is not null)
         {
-            List<string>? rolePermissions = null;
-
-            // DB first, then config fallback
-            if (rolePermissionsMapping is not null && rolePermissionsMapping.TryGetValue(role, out var dbPerms))
+            foreach (string role in roles)
             {
-                rolePermissions = dbPerms;
-                _logger.LogDebug("Resolved permissions for role {Role} from database", role);
-            }
-            else if (_options.RolePermissions.TryGetValue(role, out List<string>? configPerms))
-            {
-                rolePermissions = configPerms;
-                _logger.LogDebug("Resolved permissions for role {Role} from config fallback", role);
-            }
-
-            if (rolePermissions is not null)
-            {
-                foreach (string permission in rolePermissions)
+                if (rolePermissionsMapping.TryGetValue(role, out var dbPerms) && dbPerms is not null)
                 {
-                    permissions.Add(permission);
+                    foreach (string permission in dbPerms)
+                    {
+                        permissions.Add(permission);
+                    }
                 }
             }
         }
@@ -104,63 +70,35 @@ public class PermissionService : IPermissionService
     }
 
     /// <summary>
-    /// Map Entra ID groups to application roles.
-    /// Prefers <see cref="IIdentityHubClient"/> when registered; falls back to DB repo, then config.
+    /// Maps Entra ID group claim values (names or object IDs) to application role names.
     /// </summary>
-    public async Task<List<string>> MapGroupsToRoles(IEnumerable<string> groups)
+    /// <param name="groups">Group claim values from the user's token.</param>
+    /// <returns>List of application role names that correspond to the given groups.</returns>
+    public async Task<List<string>> MapGroupsToRolesAsync(IEnumerable<string> groups)
     {
         if (groups is null || !groups.Any())
         {
             return [];
         }
 
-        // 1. Try remote client (external apps)
         Dictionary<string, string>? groupRoleMapping = null;
-        if (_client is not null)
+        try
         {
-            try
-            {
-                groupRoleMapping = await _client.GetGroupToRoleMappingAsync();
-                _logger.LogDebug("Resolved group-role mapping from IdentityHub client");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to read group-role mappings from IdentityHub client, falling back to DB/config");
-            }
+            groupRoleMapping = await _rolesRepository.GetGroupToRoleDictionaryAsync();
+            _logger.LogDebug("Resolved group-role mapping from database");
         }
-
-        // 2. Try DB-backed mapping
-        if (groupRoleMapping is null && _permissionsRepository is not null)
+        catch (Exception ex)
         {
-            try
-            {
-                groupRoleMapping = await _rolesRepository.GetGroupToRoleDictionaryAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to read group-role mappings from DB, falling back to config");
-            }
+            _logger.LogWarning(ex, "Failed to read group-role mappings from DB");
         }
 
         var roles = new HashSet<string>();
-
-        foreach (string group in groups)
+        if (groupRoleMapping is not null)
         {
-            string? role = null;
-
-            // DB first, then config fallback
-            if (groupRoleMapping is not null && groupRoleMapping.TryGetValue(group, out var dbRole))
+            foreach (string group in groups)
             {
-                role = dbRole;
-            }
-            else if (_options.GroupToRoleMapping.TryGetValue(group, out string? configRole))
-            {
-                role = configRole;
-            }
-
-            if (role is not null)
-            {
-                roles.Add(role);
+                if (groupRoleMapping.TryGetValue(group, out var dbRole) && dbRole is not null)
+                    roles.Add(dbRole);
             }
         }
 
@@ -168,8 +106,11 @@ public class PermissionService : IPermissionService
     }
 
     /// <summary>
-    /// Check if a permission matches a pattern (supports wildcards)
+    /// Checks whether a permission string matches a pattern (supports wildcard <c>.*</c>).
     /// </summary>
+    /// <param name="permission">Permission to check (e.g., <c>"users.delete"</c>).</param>
+    /// <param name="pattern">Pattern to match against (e.g., <c>"users.*"</c>).</param>
+    /// <returns><c>true</c> if the permission matches the pattern; otherwise <c>false</c>.</returns>
     public bool MatchesPermission(string permission, string pattern)
     {
         if (string.IsNullOrEmpty(permission) || string.IsNullOrEmpty(pattern))
@@ -177,19 +118,71 @@ public class PermissionService : IPermissionService
             return false;
         }
 
-        // Exact match
         if (permission.Equals(pattern, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        // Wildcard match (e.g., "users.*" matches "users.read")
         if (pattern.EndsWith(".*"))
         {
-            string prefix = pattern.Substring(0, pattern.Length - 2);
+            string prefix = pattern[..^2];
             return permission.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase);
         }
 
         return false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Permissions CRUD
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Gets all known permissions.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>List of all <see cref="Permission"/> entities.</returns>
+    public Task<List<Permission>> GetAllPermissionsAsync(CancellationToken ct = default)
+        => _permissionsRepository.GetAllPermissionsAsync(ct);
+
+    /// <summary>
+    /// Gets a permission by its unique name.
+    /// </summary>
+    /// <param name="name">Permission name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The matching <see cref="Permission"/> or <c>null</c> if not found.</returns>
+    public Task<Permission?> GetPermissionByNameAsync(string name, CancellationToken ct = default)
+        => _permissionsRepository.GetPermissionByNameAsync(name, ct);
+
+    /// <summary>
+    /// Creates a new permission with the specified name.
+    /// </summary>
+    /// <param name="name">Permission name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The created <see cref="Permission"/> or <c>null</c> if a permission with the same name already exists.</returns>
+    public async Task<Permission?> CreatePermissionAsync(string name, CancellationToken ct = default)
+    {
+        if (await _permissionsRepository.GetPermissionByNameAsync(name, ct) is not null)
+        {
+            return null;
+        }
+
+        return await _permissionsRepository.CreatePermissionAsync(new Permission { Name = name }, ct);
+    }
+
+    /// <summary>
+    /// Deletes a permission by name.
+    /// </summary>
+    /// <param name="name">Permission name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns><c>true</c> if deleted; otherwise <c>false</c>.</returns>
+    public async Task<bool> DeletePermissionAsync(string name, CancellationToken ct = default)
+    {
+        var permission = await _permissionsRepository.GetPermissionByNameAsync(name, ct);
+        if (permission is null)
+        {
+            return false;
+        }
+
+        return await _permissionsRepository.DeletePermissionAsync(permission.Id, ct);
     }
 }

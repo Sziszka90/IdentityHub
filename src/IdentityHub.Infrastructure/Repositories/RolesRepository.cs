@@ -24,7 +24,7 @@ public class RolesRepository : IRolesRepository
             .OrderBy(r => r.Name)
             .ToListAsync(ct);
 
-    public async Task<Role?> GetRoleByIdAsync(int id, CancellationToken ct = default)
+    public async Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken ct = default)
         => await _db.Roles
             .Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
@@ -43,13 +43,12 @@ public class RolesRepository : IRolesRepository
 
     public async Task<Role> UpdateRoleAsync(Role role, CancellationToken ct = default)
     {
-        role.UpdatedAt = DateTime.UtcNow;
         _db.Roles.Update(role);
         await _db.SaveChangesAsync(ct);
         return role;
     }
 
-    public async Task<bool> DeleteRoleAsync(int id, CancellationToken ct = default)
+    public async Task<bool> DeleteRoleAsync(Guid id, CancellationToken ct = default)
     {
         var role = await _db.Roles.Where(x => x.Id == id).FirstOrDefaultAsync(ct);
         if (role is null)
@@ -74,6 +73,13 @@ public class RolesRepository : IRolesRepository
             .Include(g => g.Role)
             .FirstOrDefaultAsync(g => g.GroupName == groupName, ct);
 
+    public async Task<GroupRoleMapping?> GetGroupRoleMappingByRoleIdAsync(Guid roleId, CancellationToken ct = default)
+    {
+        return await _db.GroupRoleMappings
+            .Include(g => g.Role)
+            .FirstOrDefaultAsync(g => g.RoleId == roleId, ct);
+    }
+
     public async Task<GroupRoleMapping> CreateGroupRoleMappingAsync(GroupRoleMapping mapping, CancellationToken ct = default)
     {
         _db.GroupRoleMappings.Add(mapping);
@@ -88,9 +94,9 @@ public class RolesRepository : IRolesRepository
         return mapping;
     }
 
-    public async Task<bool> DeleteGroupRoleMappingAsync(int id, CancellationToken ct = default)
+    public async Task<bool> DeleteGroupRoleMappingAsync(Guid id, CancellationToken ct = default)
     {
-        var mapping = await _db.GroupRoleMappings.FindAsync(new object[] { id }, ct);
+        var mapping = await _db.GroupRoleMappings.FindAsync([id], ct);
         if (mapping is null)
         {
             return false;
@@ -109,5 +115,23 @@ public class RolesRepository : IRolesRepository
             .ToListAsync(ct);
 
         return mappings.ToDictionary(m => m.GroupName, m => m.Role.Name);
+    }
+
+    public async Task<List<Role>> GetRolesByIdsAsync(IEnumerable<Guid> roleIds, CancellationToken ct = default)
+    {
+        return await _db.Roles
+            .Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
+            .Where(r => roleIds.Contains(r.Id))
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<GroupRoleMapping>> GetGroupRoleMappingsByGroupIdsAsync(IEnumerable<string> groupIds, CancellationToken ct = default)
+    {
+        return await _db.GroupRoleMappings
+            .Include(g => g.Role)
+            .Where(g => groupIds.Contains(g.GroupName))
+            .AsNoTracking()
+            .ToListAsync(ct);
     }
 }

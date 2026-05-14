@@ -1,247 +1,188 @@
 using IdentityHub.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
+using IdentityHub.API.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using IdentityHub.API.DTOs.AuthorizationConfig.Requests;
+using IdentityHub.API.DTOs.Users.Requests;
+using Microsoft.Graph.Models;
+using AutoMapper;
+using IdentityHub.API.DTOs.Groups;
+using IdentityHub.API.DTOs.Permissions;
 
 namespace IdentityHub.API.Controllers;
 
 /// <summary>
-/// Admin endpoints for managing users, roles, and permissions
+/// Admin endpoints for querying user permissions and managing user role assignments.
+/// Role and group-mapping CRUD is handled by <see cref="AuthorizationConfigController"/>.
 /// </summary>
 [ApiController]
 [Route("api/admin")]
-[Authorize]
+// Remove broad role requirement; use fine-grained permission attributes per endpoint
 public class AdminController : ControllerBase
 {
-    private readonly IAdminService _adminService;
+    private readonly IUserService _userService;
+    private readonly IGraphService _graphService;
+    private readonly IPermissionService _permissionService;
+    private readonly IRoleService _roleService;
     private readonly ILogger<AdminController> _logger;
+    private readonly IMapper _mapper;
 
     public AdminController(
-        IAdminService adminService,
-        ILogger<AdminController> logger)
+        IUserService userService,
+        IGraphService graphService,
+        IPermissionService permissionService,
+        IRoleService roleService,
+        ILogger<AdminController> logger,
+        IMapper mapper)
     {
-        _adminService = adminService;
+        _userService = userService;
+        _graphService = graphService;
+        _permissionService = permissionService;
+        _roleService = roleService;
         _logger = logger;
+        _mapper = mapper;
     }
 
     /// <summary>
-    /// Get all users with their effective permissions (tenant-scoped)
+    /// Get all users
     /// </summary>
-    /// <returns>List of users with permissions</returns>
+    // --- USERS CRUD ---
     [HttpGet("users")]
-    [Authorize(Policy = "RequireAdmin")]
+    [RequirePermission("users.read")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetUsers()
     {
         _logger.LogInformation("Admin requesting all users");
-
-        var users = await _adminService.GetUsersWithPermissionsAsync();
-        return Ok(new
-        {
-            count = users.Count,
-            users
-        });
+        var users = await _userService.GetUsersWithPermissionsAsync();
+        return Ok(new { count = users.Count, users });
     }
 
     /// <summary>
-    /// Get a specific user's effective permissions
+    /// Get a user by ID
     /// </summary>
-    /// <param name="userId">User ID</param>
-    /// <returns>User permissions</returns>
-    [HttpGet("users/{userId}/permissions")]
-    [Authorize(Policy = "RequireAdminOrAgent")]
+    [HttpGet("users/{userId}")]
+    [RequirePermission("users.read")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetUserById(string userId)
+    {
+        var user = await _graphService.GetUserAsync(userId);
+        if (user is null)
+        {
+            return NotFound(new { message = $"User {userId} not found" });
+        }
+
+        return Ok(user);
+    }
+
+    /// <summary>
+    /// Create a new user
+    /// </summary>
+    [HttpPost("users")]
+    [RequirePermission("users.create")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+    {
+        var user = _mapper.Map<User>(request);
+
+        var createdUser = await _userService.CreateUserWithRolesAsync(user, request.RoleIds);
+        if (createdUser is null)
+        {
+            return BadRequest(new { message = "Failed to create user" });
+        }
+        return CreatedAtAction(nameof(GetUserById), new { userId = createdUser.Id }, createdUser);
+    }
+
+    /// <summary>
+    /// Update a user
+    /// </summary>
+    [HttpPut("users/{userId}")]
+    [RequirePermission("users.update")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateUser([FromBody] UpdateUserRequest request)
+    {
+        var user = await _graphService.GetUserAsync(request.Id);
+
+        if (user is null)
+        {
+            return NotFound(new { message = $"User {request.Id} not found" });
+        }
+
+        _mapper.Map(request, user);
+
+        var updatedUser = await _graphService.UpdateUserAsync(user);
+        return Ok(updatedUser);
+    }
+
+    /// <summary>
+    /// Delete a user
+    /// </summary>
+    [HttpDelete("users/{userId}")]
+    [RequirePermission("users.delete")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteUser(string userId)
+    {
+        await _graphService.DeleteUserAsync(userId);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Get a specific user's permissions
+    /// </summary>
+    [HttpGet("users/{userId}/permissions")]
+    [RequirePermission("users.permissions.read")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetUserPermissions(string userId)
     {
-        _logger.LogInformation("Admin requesting permissions for user {UserId}", userId);
-
-        var userPermissions = await _adminService.GetUserPermissionsAsync(userId);
-        if (userPermissions == null)
+        var userPermissions = await _userService.GetUserPermissionsAsync(userId);
+        if (userPermissions is null)
         {
-            return NotFound(new { message = $"User {userId} not found in current tenant" });
+            return NotFound(new { message = $"User {userId} not found" });
         }
 
         return Ok(userPermissions);
     }
 
     /// <summary>
-    /// Get detailed permission resolution chain for a user
-    /// Shows groups → roles → permissions
+    /// Get detailed permission resolution chain for a user (groups → roles → permissions)
     /// </summary>
-    /// <param name="userId">User ID</param>
-    /// <returns>Permission resolution chain</returns>
     [HttpGet("users/{userId}/resolution-chain")]
-    [Authorize(Policy = "RequireAdminOrAgent")]
+    [RequirePermission("users.permissions.read")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetPermissionResolutionChain(string userId)
     {
-        _logger.LogInformation("Admin requesting resolution chain for user {UserId}", userId);
-
-        var resolutionChain = await _adminService.GetPermissionResolutionChainAsync(userId);
-        if (resolutionChain == null)
+        var resolutionChain = await _userService.GetPermissionResolutionChainAsync(userId);
+        if (resolutionChain is null)
         {
-            return NotFound(new { message = $"User {userId} not found in current tenant" });
+            return NotFound(new { message = $"User {userId} not found" });
         }
 
         return Ok(resolutionChain);
     }
 
     /// <summary>
-    /// Get all roles with their permissions
-    /// </summary>
-    /// <returns>List of roles and permissions</returns>
-    [HttpGet("roles")]
-    [Authorize(Policy = "RequireAdminOrAgent")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> GetRoles()
-    {
-        _logger.LogInformation("Admin requesting all roles");
-
-        var roles = await _adminService.GetAllRolesWithPermissionsAsync();
-        return Ok(new
-        {
-            count = roles.Count,
-            roles
-        });
-    }
-
-    /// <summary>
-    /// Get permissions for a specific role
-    /// </summary>
-    /// <param name="roleName">Role name</param>
-    /// <returns>Role permissions</returns>
-    [HttpGet("roles/{roleName}/permissions")]
-    [Authorize(Policy = "RequireAdminOrAgent")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> GetRolePermissions(string roleName)
-    {
-        _logger.LogInformation("Admin requesting permissions for role {RoleName}", roleName);
-
-        var rolePermissions = await _adminService.GetRolePermissionsAsync(roleName);
-        if (rolePermissions == null)
-        {
-            return NotFound(new { message = $"Role {roleName} not found" });
-        }
-
-        return Ok(rolePermissions);
-    }
-
-    /// <summary>
-    /// Create a new role with permissions
-    /// </summary>
-    /// <param name="request">Role creation request</param>
-    /// <returns>Created role</returns>
-    [HttpPost("roles")]
-    [Authorize(Policy = "RequireAdmin")]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
-    {
-        if (string.IsNullOrEmpty(request.Name))
-        {
-            return BadRequest(new { message = "Role name is required" });
-        }
-
-        _logger.LogInformation("Admin creating role {Name}", request.Name);
-
-        var role = await _adminService.CreateRoleAsync(request.Name, request.Permissions);
-        if (role == null)
-        {
-            return Conflict(new { message = $"Role {request.Name} already exists" });
-        }
-
-        return CreatedAtAction(
-            nameof(GetRolePermissions),
-            new { roleName = role.RoleName },
-            role);
-    }
-
-    /// <summary>
-    /// Update an existing role's permissions
-    /// </summary>
-    /// <param name="roleName">Role name</param>
-    /// <param name="request">Updated permissions</param>
-    /// <returns>Updated role</returns>
-    [HttpPut("roles/{roleName}/permissions")]
-    [Authorize(Policy = "RequireAdmin")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> UpdateRolePermissions(
-        string roleName,
-        [FromBody] CreateRoleRequest request)
-    {
-        _logger.LogInformation("Admin updating permissions for role {RoleName}", roleName);
-
-        var role = await _adminService.UpdateRolePermissionsAsync(roleName, request.Permissions);
-        if (role == null)
-        {
-            return NotFound(new { message = $"Role {roleName} not found" });
-        }
-
-        return Ok(role);
-    }
-
-    /// <summary>
-    /// Delete a role
-    /// </summary>
-    /// <param name="roleName">Role name</param>
-    /// <returns>No content</returns>
-    [HttpDelete("roles/{roleName}")]
-    [Authorize(Policy = "RequireAdmin")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> DeleteRole(string roleName)
-    {
-        _logger.LogInformation("Admin deleting role {RoleName}", roleName);
-
-        var deleted = await _adminService.DeleteRoleAsync(roleName);
-        if (!deleted)
-        {
-            return NotFound(new { message = $"Role {roleName} not found" });
-        }
-
-        return NoContent();
-    }
-
-    /// <summary>
     /// Assign roles to a user
     /// </summary>
-    /// <param name="userId">User ID</param>
-    /// <param name="request">Roles to assign</param>
-    /// <returns>Updated user permissions</returns>
     [HttpPost("users/{userId}/roles")]
-    [Authorize(Policy = "RequireAdmin")]
+    [RequirePermission("users.roles.assign")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> AssignRolesToUser(
-        string userId,
-        [FromBody] AssignRolesRequest request)
+    public async Task<IActionResult> AssignRolesToUser(string userId, [FromBody] List<string> roleIds)
     {
-        if (request.Roles == null || request.Roles.Count == 0)
+        if (roleIds is null || roleIds.Count == 0)
         {
-            return BadRequest(new { message = "At least one role must be specified" });
+            return BadRequest(new { message = "At least one role ID must be specified" });
         }
 
-        _logger.LogInformation("Admin assigning roles to user {UserId}", userId);
-
-        var userPermissions = await _adminService.AssignRolesToUserAsync(userId, request.Roles);
-        if (userPermissions == null)
+        var userPermissions = await _userService.AssignRolesToUserAsync(userId, roleIds);
+        if (userPermissions is null)
         {
-            return NotFound(new { message = $"User {userId} not found or invalid roles" });
+            return NotFound(new { message = $"User {userId} not found or invalid role IDs" });
         }
 
         return Ok(userPermissions);
@@ -250,32 +191,232 @@ public class AdminController : ControllerBase
     /// <summary>
     /// Remove roles from a user
     /// </summary>
-    /// <param name="userId">User ID</param>
-    /// <param name="request">Roles to remove</param>
-    /// <returns>Updated user permissions</returns>
     [HttpDelete("users/{userId}/roles")]
-    [Authorize(Policy = "RequireAdmin")]
+    [RequirePermission("users.roles.remove")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> RemoveRolesFromUser(
-        string userId,
-        [FromBody] AssignRolesRequest request)
+    public async Task<IActionResult> RemoveRolesFromUser(string userId, [FromBody] List<string> roleIds)
     {
-        if (request.Roles == null || request.Roles.Count == 0)
+        if (roleIds is null || roleIds.Count == 0)
         {
-            return BadRequest(new { message = "At least one role must be specified" });
+            return BadRequest(new { message = "At least one role ID must be specified" });
         }
 
-        _logger.LogInformation("Admin removing roles from user {UserId}", userId);
-
-        var userPermissions = await _adminService.RemoveRolesFromUserAsync(userId, request.Roles);
-        if (userPermissions == null)
+        var userPermissions = await _userService.RemoveRolesFromUserAsync(userId, roleIds);
+        if (userPermissions is null)
         {
             return NotFound(new { message = $"User {userId} not found" });
         }
 
         return Ok(userPermissions);
+    }
+
+    // --- ROLES CRUD ---
+    [HttpGet("roles")]
+    [RequirePermission("roles.read")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRoles()
+    {
+        var roles = await _roleService.GetAllRolesAsync();
+        return Ok(new { count = roles.Count, roles });
+    }
+
+    [HttpGet("roles/{roleName}")]
+    [RequirePermission("roles.read")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRoleByName(string roleName)
+    {
+        var role = await _roleService.GetRoleByNameAsync(roleName);
+        if (role is null)
+        {
+            return NotFound(new { message = $"Role {roleName} not found" });
+        }
+
+        return Ok(role);
+    }
+
+    [HttpPost("roles")]
+    [RequirePermission("roles.create")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
+    {
+        var role = await _roleService.CreateRoleAsync(request.Name, request.Description, request.Permissions);
+        if (role is null)
+        {
+            return BadRequest(new { message = "Failed to create role" });
+        }
+
+        return CreatedAtAction(nameof(GetRoleByName), new { roleName = request.Name }, role);
+    }
+
+    [HttpPut("roles/{roleName}")]
+    [RequirePermission("roles.update")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateRole(string roleName, [FromBody] UpdateRoleRequest request)
+    {
+        var role = await _roleService.UpdateRoleAsync(roleName, request.Description, request.Permissions);
+        if (role is null)
+        {
+            return NotFound(new { message = $"Role {roleName} not found" });
+        }
+
+        return Ok(role);
+    }
+
+    [HttpDelete("roles/{roleName}")]
+    [RequirePermission("roles.delete")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteRole(string roleName)
+    {
+        var deleted = await _roleService.DeleteRoleAsync(roleName);
+        if (!deleted)
+        {
+            return NotFound(new { message = $"Role {roleName} not found" });
+        }
+
+        return NoContent();
+    }
+
+    // --- PERMISSIONS CRUD ---
+    [HttpGet("permissions")]
+    [RequirePermission("permissions.read")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPermissions()
+    {
+        var permissions = await _permissionService.GetAllPermissionsAsync();
+        return Ok(new { count = permissions.Count, permissions });
+    }
+
+    [HttpGet("permissions/{permissionName}")]
+    [RequirePermission("permissions.read")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPermissionByName(string permissionName)
+    {
+        var permission = await _permissionService.GetPermissionByNameAsync(permissionName);
+        if (permission is null)
+        {
+            return NotFound(new { message = $"Permission {permissionName} not found" });
+        }
+
+        return Ok(permission);
+    }
+
+    [HttpPost("permissions")]
+    [RequirePermission("permissions.create")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreatePermission([FromBody] CreatePermissionRequest request)
+    {
+        var permission = await _permissionService.CreatePermissionAsync(request.Name);
+        if (permission is null)
+        {
+            return BadRequest(new { message = "Failed to create permission" });
+        }
+
+        return CreatedAtAction(nameof(GetPermissionByName), new { permissionName = request.Name }, permission);
+    }
+
+    [HttpDelete("permissions/{permissionName}")]
+    [RequirePermission("permissions.delete")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePermission(string permissionName)
+    {
+        var deleted = await _permissionService.DeletePermissionAsync(permissionName);
+        if (!deleted)
+        {
+            return NotFound(new { message = $"Permission {permissionName} not found" });
+        }
+
+        return NoContent();
+    }
+
+    // --- GROUPS CRUD ---
+    [HttpGet("groups")]
+    [RequirePermission("groups.read")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetGroups()
+    {
+        var groups = await _roleService.GetAllGroupMappingsAsync();
+        return Ok(new { count = groups.Count, groups });
+    }
+
+    [HttpGet("groups/{groupName}")]
+    [RequirePermission("groups.read")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetGroupByName(string groupName)
+    {
+        var group = await _roleService.GetGroupMappingByGroupNameAsync(groupName);
+        if (group is null)
+        {
+            return NotFound(new { message = $"Group {groupName} not found" });
+        }
+
+        return Ok(group);
+    }
+
+    [HttpPost("groups")]
+    [RequirePermission("groups.create")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateGroup([FromBody] CreateGroupRequest request)
+    {
+        if (!Guid.TryParse(request.RoleId, out var roleId))
+        {
+            return BadRequest(new { message = $"Invalid role ID: {request.RoleId}" });
+        }
+        var group = await _roleService.CreateGroupMappingAsync(request.GroupName, roleId);
+        if (group is null)
+        {
+            return BadRequest(new { message = "Failed to create group mapping" });
+        }
+        return CreatedAtAction(nameof(GetGroupByName), new { groupName = request.GroupName }, group);
+    }
+
+    [HttpPut("groups/{id}")]
+    [RequirePermission("groups.update")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateGroup(string id, [FromBody] UpdateGroupRequest request)
+    {
+        if (!Guid.TryParse(id, out var groupId))
+        {
+            return BadRequest(new { message = $"Invalid group ID: {id}" });
+        }
+        if (!Guid.TryParse(request.RoleId, out var roleId))
+        {
+            return BadRequest(new { message = $"Invalid role ID: {request.RoleId}" });
+        }
+        var group = await _roleService.UpdateGroupMappingAsync(groupId, roleId);
+        if (group is null)
+        {
+            return NotFound(new { message = $"Group mapping {id} not found" });
+        }
+        return Ok(group);
+    }
+
+    [HttpDelete("groups/{id}")]
+    [RequirePermission("groups.delete")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteGroup(string id)
+    {
+        if (!Guid.TryParse(id, out var groupId))
+        {
+            return BadRequest(new { message = $"Invalid group ID: {id}" });
+        }
+        var deleted = await _roleService.DeleteGroupMappingAsync(groupId);
+        if (!deleted)
+        {
+            return NotFound(new { message = $"Group mapping {id} not found" });
+        }
+        return NoContent();
     }
 }

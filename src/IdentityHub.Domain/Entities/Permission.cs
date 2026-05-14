@@ -8,7 +8,7 @@ public class Permission
     /// <summary>
     /// Unique ID
     /// </summary>
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Permission name/pattern (e.g. "users.*", "tickets.create").
@@ -23,10 +23,10 @@ public class Permission
     /// <summary>
     /// Created timestamp
     /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>
     /// Permissions of the role
     /// </summary>
-    public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+    public ICollection<RolePermission> RolePermissions { get; set; } = [];
 }
