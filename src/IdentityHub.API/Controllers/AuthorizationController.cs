@@ -14,13 +14,16 @@ namespace IdentityHub.API.Controllers;
 public class AuthorizationController : ControllerBase
 {
     private readonly IUserContextService _userContextService;
+    private readonly IUserService _userService;
     private readonly ILogger<AuthorizationController> _logger;
 
     public AuthorizationController(
         IUserContextService userContextService,
+        IUserService userService,
         ILogger<AuthorizationController> logger)
     {
         _userContextService = userContextService;
+        _userService = userService;
         _logger = logger;
     }
 
@@ -29,15 +32,15 @@ public class AuthorizationController : ControllerBase
     /// </summary>
     [HttpPost("check")]
     [ProducesResponseType(typeof(PermissionCheckResponse), StatusCodes.Status200OK)]
-    public IActionResult CheckPermission([FromBody] PermissionCheckRequest request)
+    public async Task<IActionResult> CheckPermission([FromBody] PermissionCheckRequest request)
     {
         var userContext = _userContextService.GetUserContext(User);
 
-        var hasPermission = userContext.HasPermission(request.Permission);
+        var hasPermission = await _userService.UserHasPermissionAsync(userContext.Id.ToString(), request.Permission);
 
         var result = new PermissionCheckResponse
         {
-            UserId = userContext.UserId,
+            UserId = userContext.Id.ToString(),
             Permission = request.Permission,
             Allowed = hasPermission,
             Reason = hasPermission
@@ -47,30 +50,8 @@ public class AuthorizationController : ControllerBase
 
         _logger.LogInformation(
             "Permission check: User {UserId} - Permission {Permission} - Result {Result}",
-            userContext.UserId, request.Permission, hasPermission);
+            userContext.Id, request.Permission, hasPermission);
 
         return Ok(result);
-    }
-
-    /// <summary>
-    /// Get user's effective permissions
-    /// </summary>
-    [HttpGet("permissions")]
-    [ProducesResponseType(typeof(UserPermissionsResponse), StatusCodes.Status200OK)]
-    public IActionResult GetPermissions()
-    {
-        var userContext = _userContextService.GetUserContext(User);
-
-        var response = new UserPermissionsResponse
-        {
-            UserId = userContext.UserId,
-            Email = userContext.Email,
-            TenantId = userContext.TenantId,
-            Groups = userContext.Groups,
-            Roles = userContext.Roles,
-            Permissions = userContext.Permissions
-        };
-
-        return Ok(response);
     }
 }

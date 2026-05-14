@@ -15,7 +15,6 @@ public class UserService : IUserService
     private readonly IPermissionService _permissionService;
     private readonly IGraphService _graphService;
     private readonly IRoleService _roleService;
-    private readonly IRolesRepository _rolesRepository;
     private readonly ILogger<UserService> _logger;
 
 
@@ -24,14 +23,12 @@ public class UserService : IUserService
         IPermissionService permissionService,
         IGraphService graphService,
         IRoleService roleService,
-        IRolesRepository rolesRepository,
         ILogger<UserService> logger)
     {
         _tenantContextService = tenantContextService ?? throw new ArgumentNullException(nameof(tenantContextService));
         _permissionService = permissionService ?? throw new ArgumentNullException(nameof(permissionService));
         _graphService = graphService ?? throw new ArgumentNullException(nameof(graphService));
         _roleService = roleService ?? throw new ArgumentNullException(nameof(roleService));
-        _rolesRepository = rolesRepository ?? throw new ArgumentNullException(nameof(rolesRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -357,5 +354,27 @@ public class UserService : IUserService
             Roles = remainingRoles,
             Permissions = remainingPermissions
         };
+    }
+
+    /// <summary>
+    /// Checks if a user has a specific permission.
+    /// </summary>
+    /// <param name="userId">The unique identifier of the user.</param>
+    /// <param name="permission">The permission to check.</param>
+    /// <returns>True if the user has the permission; otherwise, false.</returns>
+    public async Task<bool> UserHasPermissionAsync(string userId, string permission)
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(permission))
+        {
+            return false;
+        }
+
+        var userPermissionsDto = await GetUserPermissionsAsync(userId);
+        if (userPermissionsDto == null)
+        {
+            return false;
+        }
+
+        return userPermissionsDto.Permissions.Contains(permission);
     }
 }

@@ -1,6 +1,5 @@
 using IdentityHub.API.Extensions;
 using IdentityHub.API.Middleware;
-using IdentityHub.Application.Extensions;
 using IdentityHub.Infrastructure.Seeding;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,13 +10,9 @@ builder.Services.AddEntraIdAuthentication(builder.Configuration);
 
 builder.Services.AddGraphApi(builder.Configuration);
 
-builder.Services.AddAuthorizationPolicies(builder.Configuration);
-
 builder.Services.AddApplicationServices(builder.Configuration);
 
 builder.Services.AddAuthorizationDatabase(builder.Configuration);
-
-builder.Services.AddRedisCache(builder.Configuration);
 
 builder.Services.AddControllers();
 

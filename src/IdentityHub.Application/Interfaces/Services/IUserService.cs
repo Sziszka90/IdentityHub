@@ -9,6 +9,15 @@ namespace IdentityHub.Application.Interfaces;
 /// </summary>
 public interface IUserService
 {
+
+    /// <summary>
+    /// Checks if a user has a specific permission.
+    /// </summary>
+    /// <param name="userId">The unique identifier of the user.</param>
+    /// <param name="permission">The permission to check.</param>
+    /// <returns>True if the user has the permission; otherwise, false.</returns>
+    Task<bool> UserHasPermissionAsync(string userId, string permission);
+
     /// <summary>
     /// Gets all users with their effective permissions (tenant-scoped).
     /// </summary>
