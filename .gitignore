@@ -56,3 +56,4 @@ nunit-*.xml
 .vscode
 
 *.lscache
+appsettings.Development.json

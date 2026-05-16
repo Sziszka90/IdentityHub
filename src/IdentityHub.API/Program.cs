@@ -6,6 +6,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddJsonFile("appsettings.Authorization.json", optional: false, reloadOnChange: true);
 
+// Add appsettings.Development.json if in Development environment
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
+}
+
 builder.Services.AddEntraIdAuthentication(builder.Configuration);
 
 builder.Services.AddGraphApi(builder.Configuration);
