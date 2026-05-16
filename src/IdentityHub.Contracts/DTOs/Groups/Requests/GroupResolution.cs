@@ -1,4 +1,4 @@
-namespace IdentityHub.API.DTOs.Groups.Requests;
+namespace IdentityHub.Contracts.DTOs.Groups.Requests;
 
 /// <summary>
 /// Shows how a group maps to roles and permissions

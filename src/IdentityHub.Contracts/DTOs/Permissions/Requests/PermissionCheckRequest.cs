@@ -1,4 +1,4 @@
-namespace IdentityHub.API.DTOs.Permissions.Requests;
+namespace IdentityHub.Contracts.DTOs.Permissions.Requests;
 
 /// <summary>
 /// Request to check if user has a specific permission

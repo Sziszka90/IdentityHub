@@ -3,6 +3,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using IdentityHub.Contracts.DTOs.Admin;
+using IdentityHub.Contracts.DTOs.Identity;
+using IdentityHub.Contracts.DTOs.Permissions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace IdentityHub.Client;
 

@@ -1,4 +1,4 @@
-namespace IdentityHub.API.DTOs.AuthorizationConfig.Requests;
+namespace IdentityHub.Contracts.DTOs.AuthorizationConfig.Requests;
 
 public class CreateGroupRoleMappingRequest
 {

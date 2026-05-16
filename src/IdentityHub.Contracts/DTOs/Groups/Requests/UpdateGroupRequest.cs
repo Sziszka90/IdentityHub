@@ -1,4 +1,4 @@
-namespace IdentityHub.API.DTOs.Groups.Requests;
+namespace IdentityHub.Contracts.DTOs.Groups.Requests;
 
 /// <summary>
 /// DTO for updating a group mapping.
@@ -7,4 +7,3 @@ public class UpdateGroupRequest
 {
     public string RoleId { get; set; } = string.Empty;
 }
-

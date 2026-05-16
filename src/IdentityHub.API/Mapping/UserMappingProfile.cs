@@ -1,5 +1,5 @@
 using AutoMapper;
-using IdentityHub.API.DTOs.Users.Requests;
+using IdentityHub.Contracts.DTOs.Users.Requests;
 using Microsoft.Graph.Models;
 
 namespace IdentityHub.API.Mapping
@@ -9,7 +9,7 @@ namespace IdentityHub.API.Mapping
         public UserMappingProfile()
         {
             CreateMap<CreateUserRequest, User>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore()); 
+                .ForMember(dest => dest.Id, opt => opt.Ignore());
         }
     }
 }

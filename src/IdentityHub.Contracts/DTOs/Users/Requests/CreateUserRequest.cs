@@ -1,14 +1,14 @@
-namespace IdentityHub.API.DTOs.Users.Requests;
+namespace IdentityHub.Contracts.DTOs.Users.Requests;
 
 /// <summary>
-/// DTO for updating a user.
+/// DTO for creating a new user.
 /// </summary>
-public class UpdateUserRequest
+public class CreateUserRequest
 {
-    public string Id { get; set; } = string.Empty;
     public string? DisplayName { get; set; }
     public string? GivenName { get; set; }
     public string? Surname { get; set; }
+    public string? UserPrincipalName { get; set; }
     public string? Mail { get; set; }
     public string? JobTitle { get; set; }
     public string? Department { get; set; }
@@ -18,7 +18,5 @@ public class UpdateUserRequest
     public string? OfficeLocation { get; set; }
     public bool? AccountEnabled { get; set; }
     public List<string>? BusinessPhones { get; set; }
-    public List<string>? Roles { get; set; }
-    public List<string>? Groups { get; set; }
+    public List<string> RoleIds { get; set; } = [];
 }
-

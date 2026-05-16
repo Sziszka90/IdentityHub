@@ -1,12 +1,12 @@
 using IdentityHub.Application.Interfaces;
-using IdentityHub.API.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using IdentityHub.API.DTOs.AuthorizationConfig.Requests;
-using IdentityHub.API.DTOs.Users.Requests;
 using Microsoft.Graph.Models;
 using AutoMapper;
-using IdentityHub.API.DTOs.Groups.Requests;
-using IdentityHub.API.DTOs.Permissions.Requests;
+using IdentityHub.Client.Authorization;
+using IdentityHub.Contracts.DTOs.Permissions.Requests;
+using IdentityHub.Contracts.DTOs.Users.Requests;
+using IdentityHub.Contracts.DTOs.AuthorizationConfig.Requests;
+using IdentityHub.Contracts.DTOs.Groups.Requests;
 
 namespace IdentityHub.API.Controllers;
 

@@ -9,7 +9,7 @@ namespace IdentityHub.API.Authorization
     public class DynamicPermissionPolicyProvider : IAuthorizationPolicyProvider
     {
         private readonly DefaultAuthorizationPolicyProvider _fallbackPolicyProvider;
-        private const string PolicyPrefix = "RequirePermission:";
+        private const string POLICY_PREFIX = "RequirePermission:";
 
         public DynamicPermissionPolicyProvider(IOptions<AuthorizationOptions> options)
         {
@@ -21,9 +21,9 @@ namespace IdentityHub.API.Authorization
 
         public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
         {
-            if (policyName.StartsWith(PolicyPrefix, StringComparison.OrdinalIgnoreCase))
+            if (policyName.StartsWith(POLICY_PREFIX, StringComparison.OrdinalIgnoreCase))
             {
-                var permission = policyName.Substring(PolicyPrefix.Length);
+                var permission = policyName.Substring(POLICY_PREFIX.Length);
                 var policy = new AuthorizationPolicyBuilder()
                     .AddRequirements(new RequirePermissionRequirement(permission))
                     .Build();
