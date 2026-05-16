@@ -73,7 +73,7 @@ public interface IGraphService
     /// </summary>
     /// <param name="groupId">The unique identifier of the group.</param>
     /// <returns>Group object, or throws if not found.</returns>
-    Task<Group?> GetGroupAsync(string groupId);
+    Task<Group?> GetGroupByIdAsync(string groupId);
 
     /// <summary>
     /// Query groups in Microsoft Graph, optionally filtered by display name.

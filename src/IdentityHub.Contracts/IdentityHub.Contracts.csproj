@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>IdentityHub.Contracts</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Shared public DTO contracts for the IdentityHub API. Referenced by both IdentityHub.Client (NuGet) and the server-side Application layer.</Description>
+    <PackageTags>azure;entra-id;authorization;permissions;identity</PackageTags>
+    <RepositoryUrl>https://github.com/sziszka90/IdentityHub</RepositoryUrl>
+  </PropertyGroup>
+
+</Project>

@@ -54,7 +54,7 @@ public class PermissionService : IPermissionService
         var permissions = new HashSet<string>();
         if (rolePermissionsMapping is not null)
         {
-            foreach (string role in roles)
+            foreach (var role in roles)
             {
                 if (rolePermissionsMapping.TryGetValue(role, out var dbPerms) && dbPerms is not null)
                 {
@@ -98,7 +98,9 @@ public class PermissionService : IPermissionService
             foreach (string group in groups)
             {
                 if (groupRoleMapping.TryGetValue(group, out var dbRole) && dbRole is not null)
+                {
                     roles.Add(dbRole);
+                }
             }
         }
 

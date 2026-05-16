@@ -1,8 +1,8 @@
-using IdentityHub.Application.DTOs.Permissions;
-using IdentityHub.Application.DTOs.Users;
 using IdentityHub.Application.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
+using IdentityHub.Application.DTOs.Users;
+using IdentityHub.Application.DTOs.Permissions;
 
 namespace IdentityHub.Application.Services;
 
@@ -136,7 +136,7 @@ public class UserService : IUserService
 
         foreach (var groupId in groupIds)
         {
-            var group = await _graphService.GetGroupAsync(groupId);
+            var group = await _graphService.GetGroupByIdAsync(groupId);
             var groupName = group?.DisplayName ?? groupId;
 
             var roles = await _permissionService.MapGroupsToRolesAsync([groupId]);

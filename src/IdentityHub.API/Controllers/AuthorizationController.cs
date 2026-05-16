@@ -1,7 +1,8 @@
 using IdentityHub.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using IdentityHub.API.DTOs.Permissions;
+using IdentityHub.API.DTOs.Permissions.Responses;
+using IdentityHub.API.DTOs.Permissions.Requests;
 
 namespace IdentityHub.API.Controllers;
 

@@ -56,7 +56,8 @@ public class RoleService : IRoleService
         }
 
         _logger.LogDebug("Resolved {Count} direct role(s) for user {UserId}", roleIds.Count, userId);
-        return await _rolesRepository.GetRolesByIdsAsync(roleIds);
+        var roles = await _rolesRepository.GetRolesByIdsAsync(roleIds);
+        return roles;
     }
 
     /// <summary>
@@ -84,7 +85,8 @@ public class RoleService : IRoleService
         }
 
         _logger.LogDebug("Resolved {Count} transitive role(s) for user {UserId}", roleIds.Count, userId);
-        return await _rolesRepository.GetRolesByIdsAsync(roleIds);
+        var roles = await _rolesRepository.GetRolesByIdsAsync(roleIds);
+        return roles;
     }
 
     // -------------------------------------------------------------------------

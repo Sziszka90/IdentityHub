@@ -5,8 +5,8 @@ using IdentityHub.API.DTOs.AuthorizationConfig.Requests;
 using IdentityHub.API.DTOs.Users.Requests;
 using Microsoft.Graph.Models;
 using AutoMapper;
-using IdentityHub.API.DTOs.Groups;
-using IdentityHub.API.DTOs.Permissions;
+using IdentityHub.API.DTOs.Groups.Requests;
+using IdentityHub.API.DTOs.Permissions.Requests;
 
 namespace IdentityHub.API.Controllers;
 
@@ -337,54 +337,54 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
-    // --- GROUPS CRUD ---
-    [HttpGet("groups")]
+    // --- GROUP-ROLE MAPPINGS CRUD ---
+    [HttpGet("group-role-mappings")]
     [RequirePermission("groups.read")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetGroups()
+    public async Task<IActionResult> GetGroupRoleMappings()
     {
-        var groups = await _roleService.GetAllGroupMappingsAsync();
-        return Ok(new { count = groups.Count, groups });
+        var groupRoleMappings = await _roleService.GetAllGroupMappingsAsync();
+        return Ok(new { count = groupRoleMappings.Count, groupRoleMappings });
     }
 
-    [HttpGet("groups/{groupName}")]
+    [HttpGet("group-role-mappings/{groupName}")]
     [RequirePermission("groups.read")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetGroupByName(string groupName)
+    public async Task<IActionResult> GetGroupRoleMappingByGroupName(string groupName)
     {
-        var group = await _roleService.GetGroupMappingByGroupNameAsync(groupName);
-        if (group is null)
+        var groupRoleMapping = await _roleService.GetGroupMappingByGroupNameAsync(groupName);
+        if (groupRoleMapping is null)
         {
-            return NotFound(new { message = $"Group {groupName} not found" });
+            return NotFound(new { message = $"Group-role mapping for group {groupName} not found" });
         }
 
-        return Ok(group);
+        return Ok(groupRoleMapping);
     }
 
-    [HttpPost("groups")]
+    [HttpPost("group-role-mappings")]
     [RequirePermission("groups.create")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> CreateGroup([FromBody] CreateGroupRequest request)
+    public async Task<IActionResult> CreateGroupRoleMapping([FromBody] CreateGroupRequest request)
     {
         if (!Guid.TryParse(request.RoleId, out var roleId))
         {
             return BadRequest(new { message = $"Invalid role ID: {request.RoleId}" });
         }
-        var group = await _roleService.CreateGroupMappingAsync(request.GroupName, roleId);
-        if (group is null)
+        var groupRoleMapping = await _roleService.CreateGroupMappingAsync(request.GroupName, roleId);
+        if (groupRoleMapping is null)
         {
-            return BadRequest(new { message = "Failed to create group mapping" });
+            return BadRequest(new { message = "Failed to create group-role mapping" });
         }
-        return CreatedAtAction(nameof(GetGroupByName), new { groupName = request.GroupName }, group);
+        return CreatedAtAction(nameof(GetGroupRoleMappingByGroupName), new { groupName = request.GroupName }, groupRoleMapping);
     }
 
-    [HttpPut("groups/{id}")]
+    [HttpPut("group-role-mappings/{id}")]
     [RequirePermission("groups.update")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateGroup(string id, [FromBody] UpdateGroupRequest request)
+    public async Task<IActionResult> UpdateGroupRoleMapping(string id, [FromBody] UpdateGroupRequest request)
     {
         if (!Guid.TryParse(id, out var groupId))
         {
@@ -394,19 +394,19 @@ public class AdminController : ControllerBase
         {
             return BadRequest(new { message = $"Invalid role ID: {request.RoleId}" });
         }
-        var group = await _roleService.UpdateGroupMappingAsync(groupId, roleId);
-        if (group is null)
+        var groupRoleMapping = await _roleService.UpdateGroupMappingAsync(groupId, roleId);
+        if (groupRoleMapping is null)
         {
-            return NotFound(new { message = $"Group mapping {id} not found" });
+            return NotFound(new { message = $"Group-role mapping {id} not found" });
         }
-        return Ok(group);
+        return Ok(groupRoleMapping);
     }
 
-    [HttpDelete("groups/{id}")]
+    [HttpDelete("group-role-mappings/{id}")]
     [RequirePermission("groups.delete")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteGroup(string id)
+    public async Task<IActionResult> DeleteGroupRoleMapping(string id)
     {
         if (!Guid.TryParse(id, out var groupId))
         {
@@ -415,7 +415,7 @@ public class AdminController : ControllerBase
         var deleted = await _roleService.DeleteGroupMappingAsync(groupId);
         if (!deleted)
         {
-            return NotFound(new { message = $"Group mapping {id} not found" });
+            return NotFound(new { message = $"Group-role mapping {id} not found" });
         }
         return NoContent();
     }

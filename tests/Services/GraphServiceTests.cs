@@ -264,7 +264,7 @@ public class GraphServiceTests
         handler.Setup("/groups/g1", HttpStatusCode.OK,
             """{"id":"g1","displayName":"Admins","mailNickname":"admins"}""");
 
-        var result = await svc.GetGroupAsync("g1");
+        var result = await svc.GetGroupByIdAsync("g1");
 
         Assert.NotNull(result);
         Assert.Equal("g1", result.Id);
@@ -276,7 +276,7 @@ public class GraphServiceTests
     {
         var (svc, _) = Create();
 
-        await Assert.ThrowsAsync<GraphResourceNotFoundException>(() => svc.GetGroupAsync("nonexistent"));
+        await Assert.ThrowsAsync<GraphResourceNotFoundException>(() => svc.GetGroupByIdAsync("nonexistent"));
     }
 
     // -------------------------------------------------------------------------

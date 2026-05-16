@@ -65,7 +65,9 @@ public class GraphService : IGraphService
         {
             _logger.LogInformation("Fetching user {UserId} from Graph API", userId);
 
-            return await _graphClient.Users[userId].GetAsync();
+            var user = await _graphClient.Users[userId].GetAsync();
+
+            return user;
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
         {
@@ -124,7 +126,7 @@ public class GraphService : IGraphService
                 throw new KeyNotFoundException($"User with ID '{user.Id}' does not exist in Microsoft Graph.");
             }
 
-            await _graphClient.Users[user.Id].PatchAsync(user);
+            _ = await _graphClient.Users[user.Id].PatchAsync(user);
 
             var fetchedUser = await _graphClient.Users[user.Id].GetAsync();
             if (fetchedUser == null)
@@ -154,7 +156,7 @@ public class GraphService : IGraphService
             await _graphClient.Users[userId].DeleteAsync();
 
             var user = await _graphClient.Users[userId].GetAsync();
-            if (user != null)
+            if (user is not null)
             {
                 _logger.LogWarning("User {UserId} still exists after deletion attempt.", userId);
                 throw new InvalidOperationException($"User {userId} was not deleted from Graph API.");
@@ -194,7 +196,9 @@ public class GraphService : IGraphService
                 foreach (var directoryObject in memberOf.Value)
                 {
                     if (directoryObject is Group group && group.Id is not null)
+                    {
                         groups.Add(group.Id);
+                    }
                 }
             }
 
@@ -260,13 +264,15 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="groupId">The unique identifier of the group.</param>
     /// <returns>Group object, or throws if not found.</returns>
-    public async Task<Group?> GetGroupAsync(string groupId)
+    public async Task<Group?> GetGroupByIdAsync(string groupId)
     {
         try
         {
             _logger.LogInformation("Fetching group {GroupId} from Graph API", groupId);
 
-            return await _graphClient.Groups[groupId].GetAsync();
+            var group = await _graphClient.Groups[groupId].GetAsync();
+
+            return group;
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
         {
@@ -356,6 +362,13 @@ public class GraphService : IGraphService
         try
         {
             _logger.LogInformation("Updating group {GroupId} in Graph API", groupId);
+
+            var existingGroup = await _graphClient.Groups[groupId].GetAsync();
+            if (existingGroup == null)
+            {
+                _logger.LogWarning("Group {GroupId} does not exist in Graph API", groupId);
+                throw new KeyNotFoundException($"Group with ID '{groupId}' does not exist in Microsoft Graph.");
+            }
 
             var group = new Group
             {
