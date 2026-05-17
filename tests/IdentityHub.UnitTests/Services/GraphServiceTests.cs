@@ -12,7 +12,7 @@ using Microsoft.Graph;
 using Moq;
 using Xunit;
 
-namespace IdentityHub.Tests.Services;
+namespace IdentityHub.UnitTests.Services;
 
 /// <summary>
 /// Intercepts HTTP calls made by the Graph SDK and returns pre-configured responses.

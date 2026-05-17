@@ -10,7 +10,7 @@ using Microsoft.Graph.Models;
 using Moq;
 using Xunit;
 
-namespace IdentityHub.Tests.Services;
+namespace IdentityHub.UnitTests.Services;
 
 public class UserServiceTests
 {

@@ -39,11 +39,11 @@ public class AuthorizationController : ControllerBase
         {
             return BadRequest(ModelState);
         }
-        var userContext = _userContextService.GetUserContext(User);
-        var hasPermission = await _userService.UserHasPermissionAsync(userContext.Id.ToString(), request.Permission);
+        var userContext = await _userContextService.GetUserContext(User);
+        var hasPermission = await _userService.UserHasPermissionAsync(userContext.UserId, request.Permission);
         var result = new PermissionCheckResponse
         {
-            UserId = userContext.Id.ToString(),
+            UserId = userContext.UserId,
             Permission = request.Permission,
             Allowed = hasPermission,
             Reason = hasPermission
@@ -52,7 +52,7 @@ public class AuthorizationController : ControllerBase
         };
         _logger.LogInformation(
             "Permission check: User {UserId} - Permission {Permission} - Result {Result}",
-            userContext.Id, request.Permission, hasPermission);
+            userContext.UserId, request.Permission, hasPermission);
         return Ok(result);
     }
 }

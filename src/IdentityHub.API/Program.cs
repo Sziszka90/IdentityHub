@@ -20,7 +20,10 @@ builder.Services.AddApplicationServices(builder.Configuration);
 
 builder.Services.AddAuthorizationDatabase(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
 
 builder.Services.AddAutoMapper(typeof(IdentityHub.API.Mapping.UserMappingProfile).Assembly);
 
@@ -45,11 +48,13 @@ app.UseCors("AllowAll");
 
 
 app.UseAuthentication();
-// Validate tenant context for every request
-app.UseMiddleware<TenantContextValidationMiddleware>();
+// Isolation must run first to populate TenantContext, then validation can check it
 app.UseTenantIsolation();
+app.UseMiddleware<TenantContextValidationMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }
