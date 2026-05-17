@@ -1,9 +1,9 @@
-namespace IdentityHub.Contracts.DTOs.Identity;
+namespace IdentityHub.Contracts.DTOs.Identity.Responses;
 
 /// <summary>
 /// Lightweight authentication status for the current user.
 /// </summary>
-public class AuthStatusDto
+public class AuthStatusResponse
 {
     public bool Authenticated { get; set; }
     public string UserId { get; set; } = string.Empty;

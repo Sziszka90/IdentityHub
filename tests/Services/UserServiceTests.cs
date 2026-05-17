@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using IdentityHub.Application.DTOs.Users;
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Application.Services;
 using IdentityHub.Domain.Entities;
@@ -252,7 +251,7 @@ public class UserServiceTests
     [Fact]
     public async Task CreateUserWithRolesAsync_ReturnsNull_WhenGraphCreationFails()
     {
-        _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>())).ReturnsAsync((User?)null);
+        _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>()))!.ReturnsAsync((User?)null);
 
         var result = await CreateService().CreateUserWithRolesAsync(new User { UserPrincipalName = "test@c.com" }, []);
 

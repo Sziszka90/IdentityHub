@@ -1,4 +1,4 @@
-namespace IdentityHub.Contracts.DTOs.AuthorizationConfig.Responses;
+namespace IdentityHub.Contracts.DTOs.Roles.Responses;
 
 public class GroupRoleMappingResponse
 {

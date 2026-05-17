@@ -1,5 +1,5 @@
-using IdentityHub.Contracts.DTOs.Identity;
-using IdentityHub.Contracts.DTOs.Permissions;
+using IdentityHub.Contracts.DTOs.Permissions.Responses;
+using IdentityHub.Contracts.DTOs.Identity.Responses;
 
 namespace IdentityHub.Client;
 
@@ -27,7 +27,7 @@ public interface IIdentityHubClient
     /// </summary>
     /// <param name="permission">The permission name to test (e.g. "users.read").</param>
     /// <param name="bearerToken">The user's JWT bearer token.</param>
-    Task<PermissionCheckDto> CheckPermissionAsync(string permission, string bearerToken, CancellationToken ct = default);
+    Task<PermissionCheckResponse> CheckPermissionAsync(string permission, string bearerToken, CancellationToken ct = default);
 
     // -------------------------------------------------------------------------
     // IdentityController  (GET /api/identity/...)
@@ -38,12 +38,12 @@ public interface IIdentityHubClient
     /// (GET /api/identity/me).
     /// </summary>
     /// <param name="bearerToken">The user's JWT bearer token.</param>
-    Task<UserContextDto> GetCurrentUserAsync(string bearerToken, CancellationToken ct = default);
+    Task<UserContextResponse> GetCurrentUserAsync(string bearerToken, CancellationToken ct = default);
 
     /// <summary>
     /// Returns a lightweight authentication status for the bearer-token user
     /// (GET /api/identity/status).
     /// </summary>
     /// <param name="bearerToken">The user's JWT bearer token.</param>
-    Task<AuthStatusDto> GetAuthStatusAsync(string bearerToken, CancellationToken ct = default);
+    Task<AuthStatusResponse> GetAuthStatusAsync(string bearerToken, CancellationToken ct = default);
 }

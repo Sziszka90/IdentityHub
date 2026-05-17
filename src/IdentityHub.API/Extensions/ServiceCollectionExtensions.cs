@@ -55,7 +55,7 @@ public static class ServiceCollectionExtensions
             configuration.GetSection(RolePermissionOptions.SectionName));
 
         services.AddHttpContextAccessor();
-        services.AddSingleton<IAuthorizationHandler, RequirePermissionHandler>();
+        services.AddScoped<IAuthorizationHandler, RequirePermissionHandler>();
         services.AddSingleton<IAuthorizationPolicyProvider, DynamicPermissionPolicyProvider>();
         services.AddAuthorization();
         services.AddScoped<IPermissionService, PermissionService>();

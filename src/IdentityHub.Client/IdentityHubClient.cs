@@ -1,12 +1,13 @@
+
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using IdentityHub.Contracts.DTOs.Admin;
-using IdentityHub.Contracts.DTOs.Identity;
-using IdentityHub.Contracts.DTOs.Permissions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using IdentityHub.Contracts.DTOs.Permissions.Responses;
+using IdentityHub.Contracts.DTOs.Identity.Responses;
+using IdentityHub.Contracts.DTOs.Admin;
 
 namespace IdentityHub.Client;
 
@@ -132,7 +133,7 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
     // -------------------------------------------------------------------------
 
     /// <inheritdoc/>
-    public async Task<PermissionCheckDto> CheckPermissionAsync(
+    public async Task<PermissionCheckResponse> CheckPermissionAsync(
         string permission,
         string bearerToken,
         CancellationToken ct = default)
@@ -148,7 +149,7 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
         response.EnsureSuccessStatusCode();
 
         var body = await response.Content.ReadAsStringAsync(ct);
-        return JsonSerializer.Deserialize<PermissionCheckDto>(body, _json)
+        return JsonSerializer.Deserialize<PermissionCheckResponse>(body, _json)
             ?? throw new InvalidOperationException("Empty response from /api/authorization/check");
     }
 
@@ -157,7 +158,7 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
     // -------------------------------------------------------------------------
 
     /// <inheritdoc/>
-    public async Task<UserContextDto> GetCurrentUserAsync(string bearerToken, CancellationToken ct = default)
+    public async Task<UserContextResponse> GetCurrentUserAsync(string bearerToken, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "api/identity/me");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
@@ -166,12 +167,12 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
         response.EnsureSuccessStatusCode();
 
         var body = await response.Content.ReadAsStringAsync(ct);
-        return JsonSerializer.Deserialize<UserContextDto>(body, _json)
+        return JsonSerializer.Deserialize<UserContextResponse>(body, _json)
             ?? throw new InvalidOperationException("Empty response from /api/identity/me");
     }
 
     /// <inheritdoc/>
-    public async Task<AuthStatusDto> GetAuthStatusAsync(string bearerToken, CancellationToken ct = default)
+    public async Task<AuthStatusResponse> GetAuthStatusAsync(string bearerToken, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "api/identity/status");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
@@ -180,7 +181,7 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
         response.EnsureSuccessStatusCode();
 
         var body = await response.Content.ReadAsStringAsync(ct);
-        return JsonSerializer.Deserialize<AuthStatusDto>(body, _json)
+        return JsonSerializer.Deserialize<AuthStatusResponse>(body, _json)
             ?? throw new InvalidOperationException("Empty response from /api/identity/status");
     }
 }

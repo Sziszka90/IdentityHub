@@ -4,7 +4,7 @@ using IdentityHub.Infrastructure.Seeding;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddJsonFile("appsettings.Authorization.json", optional: false, reloadOnChange: true);
+builder.Configuration.AddJsonFile("appsettings.Authorization.json", optional: true, reloadOnChange: true);
 
 // Add appsettings.Development.json if in Development environment
 if (builder.Environment.IsDevelopment())

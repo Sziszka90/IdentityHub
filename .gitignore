@@ -57,3 +57,5 @@ nunit-*.xml
 
 *.lscache
 appsettings.Development.json
+
+.fake

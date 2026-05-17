@@ -35,10 +35,12 @@ public class AuthorizationController : ControllerBase
     [ProducesResponseType(typeof(PermissionCheckResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> CheckPermission([FromBody] PermissionCheckRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         var userContext = _userContextService.GetUserContext(User);
-
         var hasPermission = await _userService.UserHasPermissionAsync(userContext.Id.ToString(), request.Permission);
-
         var result = new PermissionCheckResponse
         {
             UserId = userContext.Id.ToString(),
@@ -48,11 +50,9 @@ public class AuthorizationController : ControllerBase
                 ? $"User has permission '{request.Permission}' or a matching wildcard"
                 : $"User does not have permission '{request.Permission}'"
         };
-
         _logger.LogInformation(
             "Permission check: User {UserId} - Permission {Permission} - Result {Result}",
             userContext.Id, request.Permission, hasPermission);
-
         return Ok(result);
     }
 }

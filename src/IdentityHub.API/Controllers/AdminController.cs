@@ -5,8 +5,8 @@ using AutoMapper;
 using IdentityHub.Client.Authorization;
 using IdentityHub.Contracts.DTOs.Permissions.Requests;
 using IdentityHub.Contracts.DTOs.Users.Requests;
-using IdentityHub.Contracts.DTOs.AuthorizationConfig.Requests;
 using IdentityHub.Contracts.DTOs.Groups.Requests;
+using IdentityHub.Contracts.DTOs.Roles.Requests;
 
 namespace IdentityHub.API.Controllers;
 
@@ -83,8 +83,11 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         var user = _mapper.Map<User>(request);
-
         var createdUser = await _userService.CreateUserWithRolesAsync(user, request.RoleIds);
         if (createdUser is null)
         {
@@ -102,15 +105,16 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateUser([FromBody] UpdateUserRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         var user = await _graphService.GetUserAsync(request.Id);
-
         if (user is null)
         {
             return NotFound(new { message = $"User {request.Id} not found" });
         }
-
         _mapper.Map(request, user);
-
         var updatedUser = await _graphService.UpdateUserAsync(user);
         return Ok(updatedUser);
     }
@@ -243,12 +247,15 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         var role = await _roleService.CreateRoleAsync(request.Name, request.Description, request.Permissions);
         if (role is null)
         {
             return BadRequest(new { message = "Failed to create role" });
         }
-
         return CreatedAtAction(nameof(GetRoleByName), new { roleName = request.Name }, role);
     }
 
@@ -258,12 +265,15 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateRole(string roleName, [FromBody] UpdateRoleRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         var role = await _roleService.UpdateRoleAsync(roleName, request.Description, request.Permissions);
         if (role is null)
         {
             return NotFound(new { message = $"Role {roleName} not found" });
         }
-
         return Ok(role);
     }
 
@@ -313,12 +323,15 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreatePermission([FromBody] CreatePermissionRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         var permission = await _permissionService.CreatePermissionAsync(request.Name);
         if (permission is null)
         {
             return BadRequest(new { message = "Failed to create permission" });
         }
-
         return CreatedAtAction(nameof(GetPermissionByName), new { permissionName = request.Name }, permission);
     }
 
@@ -368,6 +381,10 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateGroupRoleMapping([FromBody] CreateGroupRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         if (!Guid.TryParse(request.RoleId, out var roleId))
         {
             return BadRequest(new { message = $"Invalid role ID: {request.RoleId}" });
@@ -386,6 +403,10 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateGroupRoleMapping(string id, [FromBody] UpdateGroupRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         if (!Guid.TryParse(id, out var groupId))
         {
             return BadRequest(new { message = $"Invalid group ID: {id}" });

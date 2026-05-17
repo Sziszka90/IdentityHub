@@ -1,8 +1,6 @@
-using System.Collections.Generic;
 using IdentityHub.Application.Services;
 using Microsoft.AspNetCore.Http;
 using IdentityHub.Domain.Models;
-using Microsoft.AspNetCore.Http;
 using Moq;
 using Xunit;
 
@@ -21,7 +19,7 @@ public class TenantContextServiceTests
     [Fact]
     public void GetTenantContext_ReturnsEmptyContext_WhenHttpContextIsNull()
     {
-        _httpContextAccessorMock.Setup(a => a.HttpContext).Returns((HttpContext?)null);
+        _httpContextAccessorMock.Setup(a => a.HttpContext).Returns((HttpContext)null!);
 
         var result = CreateService().GetTenantContext();
 
