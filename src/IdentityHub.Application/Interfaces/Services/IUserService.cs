@@ -61,4 +61,12 @@ public interface IUserService
     /// <param name="roleIds">List of role IDs to remove.</param>
     /// <returns>Updated permissions DTO for the user, or <c>null</c> if the user was not found.</returns>
     Task<UserPermissionsResponse?> RemoveRolesFromUserAsync(string userId, List<string> roleIds);
+
+    /// <summary>
+    /// Checks if a user has a specific permission.
+    /// </summary>
+    /// <param name="userId">The unique identifier of the user.</param>
+    /// <param name="permission">The permission to check.</param>
+    /// <returns>True if the user has the permission; otherwise, false.</returns>
+    bool HasPermission(UserPermissionsResponse? response, string requiredPermission);
 }

@@ -64,8 +64,8 @@ public class IdentityHubDbContext : DbContext
         {
             e.ToTable("GroupRoleMappings");
             e.HasKey(g => g.Id);
-            e.Property(g => g.GroupName).HasMaxLength(200).IsRequired();
-            e.HasIndex(g => g.GroupName).IsUnique();
+            e.Property(g => g.GroupId).IsRequired();
+            e.HasIndex(g => g.GroupId).IsUnique();
 
             e.HasOne(g => g.Role)
                 .WithMany(r => r.GroupRoleMappings)

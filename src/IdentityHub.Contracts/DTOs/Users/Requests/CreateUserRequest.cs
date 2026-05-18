@@ -46,6 +46,5 @@ public class CreateUserRequest
 
     public List<string>? BusinessPhones { get; set; }
 
-    [MinLength(1)]
     public List<string> RoleIds { get; set; } = new();
 }

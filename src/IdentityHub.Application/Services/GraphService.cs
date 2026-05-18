@@ -484,7 +484,7 @@ public class GraphService : IGraphService
                     OdataId = $"https://graph.microsoft.com/v1.0/users/{userId}"
                 };
 
-                await _graphClient.Groups[groupId].Members.Ref.PostAsync(reference);
+                await _graphClient.Groups[groupId.ToString()].Members.Ref.PostAsync(reference);
             }
             catch (Exception ex)
             {

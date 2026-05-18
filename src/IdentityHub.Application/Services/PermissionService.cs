@@ -29,17 +29,40 @@ public class PermissionService : IPermissionService
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Resolves the combined list of permission names for the given role names.
+    /// Resolves the combined list of permission names for the given roles.
     /// </summary>
-    /// <param name="roles">Role names to resolve permissions for.</param>
+    /// <param name="roles">Role entities to resolve permissions for.</param>
     /// <returns>Deduplicated list of permission names granted by any of the specified roles.</returns>
-    public async Task<List<string>> ResolvePermissionsAsync(IEnumerable<string> roles)
+    public async Task<List<string>> ResolvePermissionsAsync(IEnumerable<Role> roles)
     {
         if (roles is null || !roles.Any())
         {
             return [];
         }
 
+        // If RolePermissions are populated, use them; otherwise, fallback to DB mapping for test compatibility
+        var permissions = new HashSet<string>();
+        bool usedRolePermissions = false;
+        foreach (var role in roles)
+        {
+            if (role.RolePermissions != null && role.RolePermissions.Count > 0)
+            {
+                usedRolePermissions = true;
+                foreach (var rp in role.RolePermissions)
+                {
+                    if (rp.Permission != null && !string.IsNullOrEmpty(rp.Permission.Name))
+                    {
+                        permissions.Add(rp.Permission.Name);
+                    }
+                }
+            }
+        }
+        if (usedRolePermissions)
+        {
+            return [.. permissions];
+        }
+
+        // Fallback: use DB mapping by role name (for unit tests and legacy code)
         Dictionary<string, List<string>>? rolePermissionsMapping = null;
         try
         {
@@ -51,12 +74,11 @@ public class PermissionService : IPermissionService
             _logger.LogWarning(ex, "Failed to read role-permissions from DB");
         }
 
-        var permissions = new HashSet<string>();
         if (rolePermissionsMapping is not null)
         {
             foreach (var role in roles)
             {
-                if (rolePermissionsMapping.TryGetValue(role, out var dbPerms) && dbPerms is not null)
+                if (!string.IsNullOrEmpty(role.Name) && rolePermissionsMapping.TryGetValue(role.Name, out var dbPerms) && dbPerms is not null)
                 {
                     foreach (string permission in dbPerms)
                     {
@@ -74,14 +96,14 @@ public class PermissionService : IPermissionService
     /// </summary>
     /// <param name="groups">Group claim values from the user's token.</param>
     /// <returns>List of application role names that correspond to the given groups.</returns>
-    public async Task<List<string>> MapGroupsToRolesAsync(IEnumerable<string> groups)
+    public async Task<List<Role>> MapGroupsToRolesAsync(IEnumerable<string> groups)
     {
         if (groups is null || !groups.Any())
         {
             return [];
         }
 
-        Dictionary<string, string>? groupRoleMapping = null;
+        Dictionary<string, Role>? groupRoleMapping = null;
         try
         {
             groupRoleMapping = await _rolesRepository.GetGroupToRoleDictionaryAsync();
@@ -92,7 +114,7 @@ public class PermissionService : IPermissionService
             _logger.LogWarning(ex, "Failed to read group-role mappings from DB");
         }
 
-        var roles = new HashSet<string>();
+        var roles = new HashSet<Role>();
         if (groupRoleMapping is not null)
         {
             foreach (string group in groups)

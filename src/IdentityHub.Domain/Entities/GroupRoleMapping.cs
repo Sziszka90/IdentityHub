@@ -13,7 +13,7 @@ public class GroupRoleMapping
     /// <summary>
     /// Azure AD group name or ID (e.g. "IdentityHub-Admins").
     /// </summary>
-    public string GroupName { get; set; } = string.Empty;
+    public Guid GroupId { get; set; }
 
     /// <summary>
     /// Foreign key to the mapped role.

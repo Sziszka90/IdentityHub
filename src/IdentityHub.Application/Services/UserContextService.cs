@@ -36,7 +36,7 @@ public class UserContextService : IUserContextService
             return new UserContext { IsAuthenticated = false };
         }
 
-        var tenantId = _tenantContextService.GetTenantContext().TenantId;
+        var tenantId = _tenantContextService.GetTenantContext()?.TenantId;
 
         if (string.IsNullOrEmpty(tenantId))
         {
@@ -47,10 +47,13 @@ public class UserContextService : IUserContextService
         var userContext = new UserContext
         {
             IsAuthenticated = true,
-            UserId = GetClaimValue(claimsPrincipal, "oid") ?? GetClaimValue(claimsPrincipal, ClaimTypes.NameIdentifier) ?? string.Empty,
+            UserId = GetClaimValue(claimsPrincipal, "http://schemas.microsoft.com/identity/claims/objectidentifier")
+                     ?? GetClaimValue(claimsPrincipal, "oid")
+                     ?? GetClaimValue(claimsPrincipal, ClaimTypes.NameIdentifier)
+                     ?? string.Empty,
             Email = GetClaimValue(claimsPrincipal, "preferred_username") ?? GetClaimValue(claimsPrincipal, ClaimTypes.Email) ?? string.Empty,
             DisplayName = GetClaimValue(claimsPrincipal, "name") ?? GetClaimValue(claimsPrincipal, ClaimTypes.Name) ?? string.Empty,
-            TenantId = tenantId,
+            TenantId = GetClaimValue(claimsPrincipal, "http://schemas.microsoft.com/identity/claims/tenantid") ?? tenantId ?? string.Empty,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -65,10 +68,9 @@ public class UserContextService : IUserContextService
 
         var rolesFromGroups = await _permissionService.MapGroupsToRolesAsync(userContext.Groups);
 
-        var allRoles = tokenRoles.Concat(rolesFromGroups).Distinct().ToList();
-        userContext.Roles = allRoles;
+        userContext.Roles = [.. rolesFromGroups.Select(r => r.Name).Concat(tokenRoles).Distinct()];
 
-        userContext.Permissions = await _permissionService.ResolvePermissionsAsync(allRoles);
+        userContext.Permissions = await _permissionService.ResolvePermissionsAsync(rolesFromGroups);
 
         userContext.Claims = claimsPrincipal.Claims
             .GroupBy(c => c.Type)

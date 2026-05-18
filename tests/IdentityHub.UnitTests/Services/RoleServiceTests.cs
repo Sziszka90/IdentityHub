@@ -43,7 +43,7 @@ public class RoleServiceTests
 
         _graphServiceMock.Setup(g => g.GetUserDirectGroupIdsAsync("u1")).ReturnsAsync(["grp-admins"]);
         _rolesRepoMock.Setup(r => r.GetGroupRoleMappingsByGroupIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new GroupRoleMapping { GroupName = "grp-admins", RoleId = roleId }]);
+            .ReturnsAsync([new GroupRoleMapping { GroupId = Guid.NewGuid(), RoleId = roleId }]);
         _rolesRepoMock.Setup(r => r.GetRolesByIdsAsync(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([role]);
 
@@ -75,7 +75,7 @@ public class RoleServiceTests
 
         _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1")).ReturnsAsync(["grp-viewers"]);
         _rolesRepoMock.Setup(r => r.GetGroupRoleMappingsByGroupIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new GroupRoleMapping { GroupName = "grp-viewers", RoleId = roleId }]);
+            .ReturnsAsync([new GroupRoleMapping { GroupId = Guid.NewGuid(), RoleId = roleId }]);
         _rolesRepoMock.Setup(r => r.GetRolesByIdsAsync(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([role]);
 
@@ -182,10 +182,11 @@ public class RoleServiceTests
     public async Task CreateGroupMappingAsync_ReturnsNull_WhenMappingAlreadyExists()
     {
         var roleId = Guid.NewGuid();
-        _rolesRepoMock.Setup(r => r.GetGroupRoleMappingByGroupNameAsync("grp-admins", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new GroupRoleMapping { GroupName = "grp-admins", RoleId = roleId });
+        var groupId = Guid.NewGuid();
+        _rolesRepoMock.Setup(r => r.GetGroupRoleMappingByGroupIdAsync(groupId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GroupRoleMapping { GroupId = groupId, RoleId = roleId });
 
-        var result = await CreateService().CreateGroupMappingAsync("grp-admins", roleId);
+        var result = await CreateService().CreateGroupMappingAsync(groupId.ToString(), roleId);
 
         Assert.Null(result);
         _rolesRepoMock.Verify(r => r.CreateGroupRoleMappingAsync(It.IsAny<GroupRoleMapping>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -195,15 +196,16 @@ public class RoleServiceTests
     public async Task CreateGroupMappingAsync_CreatesAndReturnsMapping()
     {
         var roleId = Guid.NewGuid();
-        var mapping = new GroupRoleMapping { GroupName = "grp-editors", RoleId = roleId };
+        var groupId = Guid.NewGuid();
+        var mapping = new GroupRoleMapping { GroupId = groupId, RoleId = roleId };
 
-        _rolesRepoMock.Setup(r => r.GetGroupRoleMappingByGroupNameAsync("grp-editors", It.IsAny<CancellationToken>())).ReturnsAsync((GroupRoleMapping?)null);
+        _rolesRepoMock.Setup(r => r.GetGroupRoleMappingByGroupIdAsync(groupId, It.IsAny<CancellationToken>())).ReturnsAsync((GroupRoleMapping?)null);
         _rolesRepoMock.Setup(r => r.CreateGroupRoleMappingAsync(It.IsAny<GroupRoleMapping>(), It.IsAny<CancellationToken>())).ReturnsAsync(mapping);
 
-        var result = await CreateService().CreateGroupMappingAsync("grp-editors", roleId);
+        var result = await CreateService().CreateGroupMappingAsync(groupId.ToString(), roleId);
 
         Assert.NotNull(result);
-        Assert.Equal("grp-editors", result!.GroupName);
+        Assert.Equal(groupId, result!.GroupId);
     }
 
     // -------------------------------------------------------------------------
@@ -225,8 +227,9 @@ public class RoleServiceTests
     {
         var id = Guid.NewGuid();
         var newRoleId = Guid.NewGuid();
-        var existing = new GroupRoleMapping { Id = id, GroupName = "grp-admins", RoleId = Guid.NewGuid() };
-        var updated = new GroupRoleMapping { Id = id, GroupName = "grp-admins", RoleId = newRoleId };
+        var groupId = Guid.NewGuid();
+        var existing = new GroupRoleMapping { Id = id, GroupId = groupId, RoleId = Guid.NewGuid() };
+        var updated = new GroupRoleMapping { Id = id, GroupId = groupId, RoleId = newRoleId };
 
         _rolesRepoMock.Setup(r => r.GetAllGroupRoleMappingsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([existing]);
         _rolesRepoMock.Setup(r => r.UpdateGroupRoleMappingAsync(It.IsAny<GroupRoleMapping>(), It.IsAny<CancellationToken>())).ReturnsAsync(updated);

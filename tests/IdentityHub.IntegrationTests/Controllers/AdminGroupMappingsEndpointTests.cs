@@ -20,7 +20,15 @@ public class AdminGroupMappingsEndpointTests : IClassFixture<CustomWebApplicatio
         _client = factory.CreateClient();
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
+    public async Task InitializeAsync()
+    {
+        // Clean database state before each test so seeded data doesn't interfere
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IdentityHubDbContext>();
+        db.GroupRoleMappings.RemoveRange(db.GroupRoleMappings);
+        db.Roles.RemoveRange(db.Roles);
+        await db.SaveChangesAsync();
+    }
 
     public async Task DisposeAsync()
     {
@@ -31,19 +39,20 @@ public class AdminGroupMappingsEndpointTests : IClassFixture<CustomWebApplicatio
         await db.SaveChangesAsync();
     }
 
-    private async Task<(Guid RoleId, Guid MappingId)> SeedMappingAsync(string groupName)
+    private async Task<(Guid RoleId, Guid GroupId, Guid MappingId)> SeedMappingAsync()
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityHubDbContext>();
 
-        var role = new Role { Id = Guid.NewGuid(), Name = $"role-for-{groupName}", Description = string.Empty };
+        var groupId = Guid.NewGuid();
+        var role = new Role { Id = Guid.NewGuid(), Name = $"role-for-{groupId}", Description = string.Empty };
         db.Roles.Add(role);
 
-        var mapping = new GroupRoleMapping { Id = Guid.NewGuid(), GroupName = groupName, RoleId = role.Id };
+        var mapping = new GroupRoleMapping { Id = Guid.NewGuid(), GroupId = groupId, RoleId = role.Id };
         db.GroupRoleMappings.Add(mapping);
 
         await db.SaveChangesAsync();
-        return (role.Id, mapping.Id);
+        return (role.Id, groupId, mapping.Id);
     }
 
     [Fact]
@@ -59,8 +68,8 @@ public class AdminGroupMappingsEndpointTests : IClassFixture<CustomWebApplicatio
     [Fact]
     public async Task GetGroupRoleMappings_ReturnsSeededMappings()
     {
-        await SeedMappingAsync("EngineeringGroup");
-        await SeedMappingAsync("DesignGroup");
+        await SeedMappingAsync();
+        await SeedMappingAsync();
 
         var response = await _client.GetAsync("/api/admin/group-role-mappings");
 
@@ -72,9 +81,9 @@ public class AdminGroupMappingsEndpointTests : IClassFixture<CustomWebApplicatio
     [Fact]
     public async Task GetGroupRoleMappingByGroupName_ReturnsMapping_WhenExists()
     {
-        await SeedMappingAsync("ProductGroup");
+        var (_, groupId, _) = await SeedMappingAsync();
 
-        var response = await _client.GetAsync("/api/admin/group-role-mappings/ProductGroup");
+        var response = await _client.GetAsync($"/api/admin/group-role-mappings/{groupId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -82,7 +91,7 @@ public class AdminGroupMappingsEndpointTests : IClassFixture<CustomWebApplicatio
     [Fact]
     public async Task GetGroupRoleMappingByGroupName_Returns404_WhenNotFound()
     {
-        var response = await _client.GetAsync("/api/admin/group-role-mappings/NoSuchGroup");
+        var response = await _client.GetAsync($"/api/admin/group-role-mappings/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -99,7 +108,7 @@ public class AdminGroupMappingsEndpointTests : IClassFixture<CustomWebApplicatio
 
         var request = new CreateGroupRequest
         {
-            GroupName = "SalesGroup",
+            GroupName = Guid.NewGuid().ToString(),
             RoleId = role.Id.ToString()
         };
 
@@ -121,7 +130,7 @@ public class AdminGroupMappingsEndpointTests : IClassFixture<CustomWebApplicatio
     [Fact]
     public async Task DeleteGroupRoleMapping_ReturnsNoContent_WhenExists()
     {
-        var (_, mappingId) = await SeedMappingAsync("TempGroup");
+        var (_, _, mappingId) = await SeedMappingAsync();
 
         var response = await _client.DeleteAsync($"/api/admin/group-role-mappings/{mappingId}");
 

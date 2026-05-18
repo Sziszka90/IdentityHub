@@ -63,7 +63,7 @@ public class UserService : IUserService
                 DisplayName = graphUser.DisplayName ?? "",
                 TenantId = tenantContext.TenantId,
                 Groups = groupIds,
-                Roles = roles,
+                Roles = [.. roles.Select(r => r.Name)],
                 Permissions = permissions
             });
         }
@@ -105,7 +105,7 @@ public class UserService : IUserService
             DisplayName = graphUser.DisplayName ?? "",
             TenantId = tenantContext.TenantId,
             Groups = groupIds,
-            Roles = roles,
+            Roles = [.. roles.Select(r => r.Name)],
             Permissions = permissions
         };
     }
@@ -148,13 +148,13 @@ public class UserService : IUserService
             groupResolutions.Add(new GroupResolutionResponse
             {
                 GroupName = groupName,
-                Roles = role is not null ? [role] : [],
+                Roles = role is not null ? [.. roles.Select(r => r.Name)] : [],
                 Permissions = permissions
             });
 
             if (role is not null)
             {
-                allRoles.Add(role);
+                allRoles.Add(role.Name);
             }
 
             foreach (var perm in permissions)
@@ -169,8 +169,8 @@ public class UserService : IUserService
             Email = graphUser.Mail ?? graphUser.UserPrincipalName ?? "",
             TenantId = tenantContext.TenantId,
             GroupResolutions = groupResolutions,
-            EffectiveRoles = allRoles.ToList(),
-            EffectivePermissions = allPermissions.ToList()
+            EffectiveRoles = [.. allRoles],
+            EffectivePermissions = [.. allPermissions]
         };
     }
 
@@ -189,7 +189,7 @@ public class UserService : IUserService
             return null;
         }
 
-        var groupIds = new List<string>();
+        var groupIds = new List<Guid>();
         if (roleIds != null && roleIds.Count > 0)
         {
             foreach (var roleIdStr in roleIds)
@@ -201,9 +201,9 @@ public class UserService : IUserService
                 }
 
                 var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid);
-                if (mapping != null && !string.IsNullOrEmpty(mapping.GroupName))
+                if (mapping != null && mapping.GroupId != Guid.Empty)
                 {
-                    groupIds.Add(mapping.GroupName);
+                    groupIds.Add(mapping.GroupId);
                 }
                 else
                 {
@@ -214,7 +214,7 @@ public class UserService : IUserService
 
         if (groupIds.Count > 0)
         {
-            await _graphService.AddUserToGroupsAsync(createdUser.Id!, groupIds);
+            await _graphService.AddUserToGroupsAsync(createdUser.Id!, [.. groupIds.Select(id => id.ToString())]);
         }
 
         return createdUser;
@@ -252,9 +252,9 @@ public class UserService : IUserService
                 continue;
             }
             var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid);
-            if (mapping != null && !string.IsNullOrEmpty(mapping.GroupName))
+            if (mapping != null && mapping.GroupId != Guid.Empty)
             {
-                groupIds.Add(mapping.GroupName);
+                groupIds.Add(mapping.GroupId.ToString());
             }
             else
             {
@@ -286,7 +286,7 @@ public class UserService : IUserService
             DisplayName = graphUser.DisplayName ?? string.Empty,
             TenantId = tenantContext.TenantId,
             Groups = groupIds,
-            Roles = roles,
+            Roles = [.. roles.Select(r => r.Name)],
             Permissions = [.. allPermissions]
         };
     }
@@ -323,9 +323,9 @@ public class UserService : IUserService
             }
 
             var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid);
-            if (mapping != null && !string.IsNullOrEmpty(mapping.GroupName))
+            if (mapping != null && mapping.GroupId != Guid.Empty)
             {
-                groupIds.Add(mapping.GroupName);
+                groupIds.Add(mapping.GroupId.ToString());
             }
             else
             {
@@ -351,7 +351,7 @@ public class UserService : IUserService
             DisplayName = graphUser.DisplayName ?? string.Empty,
             TenantId = tenantContext.TenantId,
             Groups = remainingGroupIds,
-            Roles = remainingRoles,
+            Roles = [.. remainingRoles.Select(r => r.Name)],
             Permissions = remainingPermissions
         };
     }
@@ -376,5 +376,37 @@ public class UserService : IUserService
         }
 
         return userPermissionsDto.Permissions.Contains(permission);
+    }
+
+    /// <summary>
+    /// Checks if the user has the specified permission, supporting wildcards (e.g., "users.*", "*").
+    /// </summary>
+    public bool HasPermission(UserPermissionsResponse? response, string requiredPermission)
+    {
+        if (response?.Permissions == null)
+            return false;
+
+        // Exact match
+        if (response.Permissions.Contains(requiredPermission))
+            return true;
+
+        // Wildcard match
+        foreach (var perm in response.Permissions)
+        {
+            if (perm == "*")
+            {
+                return true;
+            }
+
+            if (perm.EndsWith(".*"))
+            {
+                var prefix = perm[..^1]; // Remove the '*'
+                if (requiredPermission.StartsWith(prefix))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

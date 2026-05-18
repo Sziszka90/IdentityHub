@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Application.Services;
+using IdentityHub.Domain.Entities;
 using IdentityHub.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -15,8 +16,9 @@ public class UserContextServiceTests
 {
     private readonly Mock<IPermissionService> _permissionServiceMock = new();
     private readonly Mock<ILogger<UserContextService>> _loggerMock = new();
+    private readonly Mock<ITenantContextService> _tenantContextServiceMock = new();
 
-    private UserContextService CreateService() => new(_permissionServiceMock.Object, _loggerMock.Object);
+    private UserContextService CreateService() => new(_permissionServiceMock.Object, _loggerMock.Object, _tenantContextServiceMock.Object);
 
     private static ClaimsPrincipal AuthenticatedPrincipal(params (string type, string value)[] claims)
     {
@@ -55,8 +57,9 @@ public class UserContextServiceTests
     [Fact]
     public async Task GetUserContext_ReturnsAuthenticatedContext_WithCorrectClaims()
     {
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync([]);
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<string>>())).ReturnsAsync([]);
+        _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role>());
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
 
         var principal = AuthenticatedPrincipal(
             ("tid", "tenant-abc"),
@@ -76,8 +79,9 @@ public class UserContextServiceTests
     [Fact]
     public async Task GetUserContext_FallsBackToNameIdentifier_WhenOidMissing()
     {
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync([]);
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<string>>())).ReturnsAsync([]);
+        _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role>());
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
 
         var principal = AuthenticatedPrincipal(
             ("tid", "tenant-abc"),
@@ -92,10 +96,12 @@ public class UserContextServiceTests
     [Fact]
     public async Task GetUserContext_ResolvesGroupsAndRolesAndPermissions()
     {
+        _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
+        var adminRole = new Role { Name = "Admin" };
         _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.Is<List<string>>(l => l.Contains("grp-admins"))))
-            .ReturnsAsync(["Admin"]);
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<string>>()))
-            .ReturnsAsync(["users.read", "users.write"]);
+            .ReturnsAsync(new List<Role> { adminRole });
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>()))
+            .ReturnsAsync(new List<string> { "users.read", "users.write" });
 
         var principal = AuthenticatedPrincipal(
             ("tid", "tenant-abc"),
@@ -112,8 +118,10 @@ public class UserContextServiceTests
     [Fact]
     public async Task GetUserContext_MergesTokenRolesAndGroupRoles()
     {
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(["GroupRole"]);
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<string>>())).ReturnsAsync([]);
+        _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
+        var groupRole = new Role { Name = "GroupRole" };
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role> { groupRole });
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
 
         var principal = AuthenticatedPrincipal(
             ("tid", "tenant-abc"),
@@ -129,8 +137,10 @@ public class UserContextServiceTests
     [Fact]
     public async Task GetUserContext_DeduplicatesRoles()
     {
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(["Admin"]);
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<string>>())).ReturnsAsync([]);
+        _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
+        var adminRole = new Role { Name = "Admin" };
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role> { adminRole });
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
 
         // "Admin" appears in both token roles and group-derived roles
         var principal = AuthenticatedPrincipal(

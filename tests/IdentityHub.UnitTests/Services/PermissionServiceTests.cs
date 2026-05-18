@@ -41,6 +41,7 @@ public class PermissionServiceTests
     [Fact]
     public async Task ResolvePermissionsAsync_ReturnsPermissions_ForKnownRole()
     {
+        var adminRole = new Role { Name = "Admin" };
         _permissionsRepoMock
             .Setup(r => r.GetAllRolePermissionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, List<string>>
@@ -49,7 +50,7 @@ public class PermissionServiceTests
                 ["Viewer"] = ["users.read"]
             });
 
-        var result = await CreateService().ResolvePermissionsAsync(["Admin"]);
+        var result = await CreateService().ResolvePermissionsAsync(new List<Role> { adminRole });
 
         Assert.Equal(2, result.Count);
         Assert.Contains("users.read", result);
@@ -59,6 +60,8 @@ public class PermissionServiceTests
     [Fact]
     public async Task ResolvePermissionsAsync_DeduplicatesPermissions_AcrossRoles()
     {
+        var adminRole = new Role { Name = "Admin" };
+        var viewerRole = new Role { Name = "Viewer" };
         _permissionsRepoMock
             .Setup(r => r.GetAllRolePermissionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, List<string>>
@@ -67,7 +70,7 @@ public class PermissionServiceTests
                 ["Viewer"] = ["users.read"]
             });
 
-        var result = await CreateService().ResolvePermissionsAsync(["Admin", "Viewer"]);
+        var result = await CreateService().ResolvePermissionsAsync(new List<Role> { adminRole, viewerRole });
 
         // users.read appears in both roles — should only appear once
         Assert.Equal(2, result.Count);
@@ -77,6 +80,7 @@ public class PermissionServiceTests
     [Fact]
     public async Task ResolvePermissionsAsync_ReturnsEmpty_WhenRoleNotInMapping()
     {
+        var unknownRole = new Role { Name = "UnknownRole" };
         _permissionsRepoMock
             .Setup(r => r.GetAllRolePermissionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, List<string>>
@@ -84,7 +88,7 @@ public class PermissionServiceTests
                 ["Admin"] = ["users.read"]
             });
 
-        var result = await CreateService().ResolvePermissionsAsync(["UnknownRole"]);
+        var result = await CreateService().ResolvePermissionsAsync(new List<Role> { unknownRole });
 
         Assert.Empty(result);
     }
@@ -92,11 +96,12 @@ public class PermissionServiceTests
     [Fact]
     public async Task ResolvePermissionsAsync_ReturnsEmpty_WhenRepositoryThrows()
     {
+        var adminRole = new Role { Name = "Admin" };
         _permissionsRepoMock
             .Setup(r => r.GetAllRolePermissionsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("DB unavailable"));
 
-        var result = await CreateService().ResolvePermissionsAsync(["Admin"]);
+        var result = await CreateService().ResolvePermissionsAsync(new List<Role> { adminRole });
 
         // Should gracefully return empty rather than propagating the exception
         Assert.Empty(result);
@@ -123,45 +128,49 @@ public class PermissionServiceTests
     [Fact]
     public async Task MapGroupsToRolesAsync_ReturnsMappedRoles()
     {
+        var adminRole = new Role { Name = "Admin" };
+        var viewerRole = new Role { Name = "Viewer" };
         _rolesRepoMock
             .Setup(r => r.GetGroupToRoleDictionaryAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, string>
+            .ReturnsAsync(new Dictionary<string, Role>
             {
-                ["grp-admins"] = "Admin",
-                ["grp-viewers"] = "Viewer"
+                ["grp-admins"] = adminRole,
+                ["grp-viewers"] = viewerRole
             });
 
         var result = await CreateService().MapGroupsToRolesAsync(["grp-admins"]);
 
         Assert.Single(result);
-        Assert.Contains("Admin", result);
+        Assert.Contains(result, r => r.Name == "Admin");
     }
 
     [Fact]
     public async Task MapGroupsToRolesAsync_DeduplicatesRoles_WhenMultipleGroupsMapToSameRole()
     {
+        var adminRole = new Role { Name = "Admin" };
         _rolesRepoMock
             .Setup(r => r.GetGroupToRoleDictionaryAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, string>
+            .ReturnsAsync(new Dictionary<string, Role>
             {
-                ["grp-admins-eu"] = "Admin",
-                ["grp-admins-us"] = "Admin"
+                ["grp-admins-eu"] = adminRole,
+                ["grp-admins-us"] = adminRole
             });
 
         var result = await CreateService().MapGroupsToRolesAsync(["grp-admins-eu", "grp-admins-us"]);
 
         Assert.Single(result);
-        Assert.Equal("Admin", result[0]);
+        Assert.Equal("Admin", result[0].Name);
     }
 
     [Fact]
     public async Task MapGroupsToRolesAsync_SkipsUnknownGroups()
     {
+        var adminRole = new Role { Name = "Admin" };
         _rolesRepoMock
             .Setup(r => r.GetGroupToRoleDictionaryAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, string>
+            .ReturnsAsync(new Dictionary<string, Role>
             {
-                ["grp-admins"] = "Admin"
+                ["grp-admins"] = adminRole
             });
 
         var result = await CreateService().MapGroupsToRolesAsync(["grp-unknown"]);

@@ -65,13 +65,13 @@ public class RolesRepository : IRolesRepository
         => await _db.GroupRoleMappings
             .Include(g => g.Role)
             .AsNoTracking()
-            .OrderBy(g => g.GroupName)
+            .OrderBy(g => g.GroupId)
             .ToListAsync(ct);
 
-    public async Task<GroupRoleMapping?> GetGroupRoleMappingByGroupNameAsync(string groupName, CancellationToken ct = default)
+    public async Task<GroupRoleMapping?> GetGroupRoleMappingByGroupIdAsync(Guid groupId, CancellationToken ct = default)
         => await _db.GroupRoleMappings
             .Include(g => g.Role)
-            .FirstOrDefaultAsync(g => g.GroupName == groupName, ct);
+            .FirstOrDefaultAsync(g => g.GroupId == groupId, ct);
 
     public async Task<GroupRoleMapping?> GetGroupRoleMappingByRoleIdAsync(Guid roleId, CancellationToken ct = default)
     {
@@ -107,14 +107,14 @@ public class RolesRepository : IRolesRepository
         return true;
     }
 
-    public async Task<Dictionary<string, string>> GetGroupToRoleDictionaryAsync(CancellationToken ct = default)
+    public async Task<Dictionary<string, Role>> GetGroupToRoleDictionaryAsync(CancellationToken ct = default)
     {
         var mappings = await _db.GroupRoleMappings
             .Include(g => g.Role)
             .AsNoTracking()
             .ToListAsync(ct);
 
-        return mappings.ToDictionary(m => m.GroupName, m => m.Role.Name);
+        return mappings.ToDictionary(m => m.GroupId.ToString(), m => m.Role);
     }
 
     public async Task<List<Role>> GetRolesByIdsAsync(IEnumerable<Guid> roleIds, CancellationToken ct = default)
@@ -128,9 +128,15 @@ public class RolesRepository : IRolesRepository
 
     public async Task<List<GroupRoleMapping>> GetGroupRoleMappingsByGroupIdsAsync(IEnumerable<string> groupIds, CancellationToken ct = default)
     {
+        var guids = groupIds
+            .Select(id => Guid.TryParse(id, out var g) ? (Guid?)g : null)
+            .Where(g => g.HasValue)
+            .Select(g => g!.Value)
+            .ToList();
+
         return await _db.GroupRoleMappings
             .Include(g => g.Role)
-            .Where(g => groupIds.Contains(g.GroupName))
+            .Where(g => guids.Contains(g.GroupId))
             .AsNoTracking()
             .ToListAsync(ct);
     }

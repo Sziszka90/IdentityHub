@@ -20,7 +20,17 @@ public class AdminRolesEndpointTests : IClassFixture<CustomWebApplicationFactory
         _client = factory.CreateClient();
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
+    public async Task InitializeAsync()
+    {
+        // Clean database state before each test so seeded data doesn't interfere
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IdentityHubDbContext>();
+        db.RolePermissions.RemoveRange(db.RolePermissions);
+        db.GroupRoleMappings.RemoveRange(db.GroupRoleMappings);
+        db.Roles.RemoveRange(db.Roles);
+        db.Permissions.RemoveRange(db.Permissions);
+        await db.SaveChangesAsync();
+    }
 
     public async Task DisposeAsync()
     {

@@ -3,14 +3,12 @@ using IdentityHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using IdentityHub.Domain.Models;
 
 namespace IdentityHub.Infrastructure.Seeding;
 
 /// <summary>
-/// Seeds the authorization database from appsettings configuration.
-/// Runs on startup — idempotent (skips if data already exists).
+/// Seeds the authorization database with default permissions and Admin role.
+/// Runs on startup — idempotent (only runs if database is empty).
 /// </summary>
 public static class AuthorizationDbSeeder
 {
@@ -19,75 +17,91 @@ public static class AuthorizationDbSeeder
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityHubDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<IdentityHubDbContext>>();
-        var rolePermOptions = scope.ServiceProvider.GetRequiredService<IOptions<RolePermissionOptions>>().Value;
 
         // Apply pending migrations
         await db.Database.MigrateAsync();
         logger.LogInformation("Authorization database migrated");
 
-        // Skip seeding if roles already exist
-        if (await db.Roles.AnyAsync())
+        // Skip seeding if database is not empty
+        if (await db.Permissions.AnyAsync() || await db.Roles.AnyAsync())
         {
             logger.LogInformation("Authorization database already seeded — skipping");
             return;
         }
 
-        logger.LogInformation("Seeding authorization database from appsettings configuration...");
+        logger.LogInformation("Seeding authorization database with default permissions and Admin role...");
 
-        // ── 1. Create Roles and Permissions from RolePermissions config ──
-        var permissionCache = new Dictionary<string, Permission>();
-
-        foreach (var (roleName, permissionNames) in rolePermOptions.RolePermissions)
+        // ── 1. Define all standardized permissions ──
+        var permissionNames = new List<string>
         {
-            var role = new Role { Name = roleName };
-            db.Roles.Add(role);
-            await db.SaveChangesAsync();
+            // Users Management
+            "users.read",
+            "users.create",
+            "users.update",
+            "users.delete",
+            "users.permissions.read",
+            "users.roles.assign",
+            "users.roles.remove",
 
-            foreach (var permName in permissionNames)
-            {
-                if (!permissionCache.TryGetValue(permName, out var perm))
-                {
-                    perm = await db.Permissions.FirstOrDefaultAsync(p => p.Name == permName);
-                    if (perm is null)
-                    {
-                        perm = new Permission { Name = permName };
-                        db.Permissions.Add(perm);
-                        await db.SaveChangesAsync();
-                    }
-                    permissionCache[permName] = perm;
-                }
+            // Roles Management
+            "roles.read",
+            "roles.create",
+            "roles.update",
+            "roles.delete",
 
-                db.RolePermissions.Add(new Domain.Entities.RolePermission
-                {
-                    RoleId = role.Id,
-                    PermissionId = perm.Id
-                });
-            }
+            // Permissions Management
+            "permissions.read",
+            "permissions.create",
+            "permissions.delete",
 
-            await db.SaveChangesAsync();
-            logger.LogInformation("Seeded role {Role} with {Count} permissions", roleName, permissionNames.Count);
+            // Groups Management
+            "groups.read",
+            "groups.create",
+            "groups.update",
+            "groups.delete"
+        };
+
+        // ── 2. Create all permissions ──
+        var permissions = new Dictionary<string, Permission>();
+        foreach (var permName in permissionNames)
+        {
+            var permission = new Permission { Name = permName };
+            db.Permissions.Add(permission);
+            permissions[permName] = permission;
         }
+        await db.SaveChangesAsync();
+        logger.LogInformation("Seeded {Count} permissions", permissions.Count);
 
-        // ── 2. Create Group-Role mappings ──
-        foreach (var (groupName, roleName) in rolePermOptions.GroupToRoleMapping)
+        // ── 3. Create Admin role ──
+        var adminRole = new Role
         {
-            var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
-            if (role is null)
-            {
-                logger.LogWarning("Skipping group mapping {Group} → {Role}: role not found", groupName, roleName);
-                continue;
-            }
+            Name = "Admin",
+            Description = "Administrator role with full system access"
+        };
+        db.Roles.Add(adminRole);
+        await db.SaveChangesAsync();
+        logger.LogInformation("Created Admin role");
 
-            db.GroupRoleMappings.Add(new GroupRoleMapping
+        // ── 4. Attach all permissions to Admin role ──
+        foreach (var permission in permissions.Values)
+        {
+            db.RolePermissions.Add(new Domain.Entities.RolePermission
             {
-                GroupName = groupName,
-                RoleId = role.Id
+                RoleId = adminRole.Id,
+                PermissionId = permission.Id
             });
         }
-
         await db.SaveChangesAsync();
-        logger.LogInformation("Seeded {Count} group-role mappings", rolePermOptions.GroupToRoleMapping.Count);
+        logger.LogInformation("Assigned all {Count} permissions to Admin role", permissions.Count);
 
+        // ── 5. Create GroupRoleMapping for Admin group ──
+        db.GroupRoleMappings.Add(new GroupRoleMapping
+        {
+            GroupId = new Guid("3cd2dafb-113e-437b-aa4d-953afa86fad7"),
+            RoleId = adminRole.Id
+        });
+        await db.SaveChangesAsync();
+        logger.LogInformation("Created GroupRoleMapping: GroupName=Admin, RoleId={RoleId}", adminRole.Id);
 
         logger.LogInformation("Authorization database seeding complete");
     }

@@ -194,8 +194,14 @@ public class RoleService : IRoleService
     /// <param name="groupName">Group name.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The matching <see cref="GroupRoleMapping"/> or <c>null</c> if not found.</returns>
-    public Task<GroupRoleMapping?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default)
-        => _rolesRepository.GetGroupRoleMappingByGroupNameAsync(groupName, ct);
+    public async Task<GroupRoleMapping?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default)
+    {
+        if (!Guid.TryParse(groupName, out var groupGuid))
+        {
+            return null;
+        }
+        return await _rolesRepository.GetGroupRoleMappingByGroupIdAsync(groupGuid, ct);
+    }
 
     /// <summary>
     /// Gets a group-role mapping by role ID.
@@ -215,13 +221,18 @@ public class RoleService : IRoleService
     /// <returns>The created <see cref="GroupRoleMapping"/> or <c>null</c> if a mapping for the group already exists.</returns>
     public async Task<GroupRoleMapping?> CreateGroupMappingAsync(string groupName, Guid roleId, CancellationToken ct = default)
     {
-        if (await _rolesRepository.GetGroupRoleMappingByGroupNameAsync(groupName, ct) is not null)
+        if (!Guid.TryParse(groupName, out var groupGuid))
+        {
+            return null;
+        }
+
+        if (await _rolesRepository.GetGroupRoleMappingByGroupIdAsync(groupGuid, ct) is not null)
         {
             return null;
         }
 
         return await _rolesRepository.CreateGroupRoleMappingAsync(
-            new GroupRoleMapping { GroupName = groupName, RoleId = roleId }, ct);
+            new GroupRoleMapping { GroupId = groupGuid, RoleId = roleId }, ct);
     }
 
     /// <summary>

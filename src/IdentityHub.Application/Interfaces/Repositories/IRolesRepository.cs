@@ -68,10 +68,10 @@ public interface IRolesRepository
     /// <summary>
     /// Finds a group→role mapping by the group's name or id value.
     /// </summary>
-    /// <param name="groupName">Group claim value (name or id) to look up.</param>
+    /// <param name="groupId">Group claim value (name or id) to look up.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The matching <see cref="GroupRoleMapping"/> or <c>null</c> if not found.</returns>
-    Task<GroupRoleMapping?> GetGroupRoleMappingByGroupNameAsync(string groupName, CancellationToken ct = default);
+    Task<GroupRoleMapping?> GetGroupRoleMappingByGroupIdAsync(Guid groupId, CancellationToken ct = default);
 
     /// <summary>
     /// Finds a group→role mapping by the role's unique identifier (roleId).
@@ -109,8 +109,8 @@ public interface IRolesRepository
     /// Returns the group-to-role dictionary (groupName → roleName) for efficient lookups.
     /// </summary>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>Dictionary mapping group claim values to role names.</returns>
-    Task<Dictionary<string, string>> GetGroupToRoleDictionaryAsync(CancellationToken ct = default);
+    /// <returns>Dictionary mapping group claim values to roles.</returns>
+    Task<Dictionary<string, Role>> GetGroupToRoleDictionaryAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Retrieves roles by a list of role IDs.
