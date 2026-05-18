@@ -23,7 +23,7 @@ public static class GraphServiceExtensions
             return services;
         }
 
-        services.AddSingleton(sp =>
+        services.AddScoped(sp =>
         {
             var logger = sp.GetRequiredService<ILogger<GraphServiceClient>>();
 

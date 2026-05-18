@@ -28,6 +28,18 @@ public class TenantContextService : ITenantContextService
             return new TenantContext();
         }
 
+
+        if (httpContext.Request.Headers.TryGetValue("X-Tenant-Id", out var tenantId))
+        {
+            // Try to get user id from claims
+            string? userId = httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            httpContext.Items["TenantContext"] = new TenantContext()
+            {
+                UserId = userId ?? string.Empty,
+                TenantId = tenantId.ToString()
+            };
+        }
+
         if (httpContext.Items.TryGetValue("TenantContext", out var contextObj)
             && contextObj is TenantContext tenantContext)
         {

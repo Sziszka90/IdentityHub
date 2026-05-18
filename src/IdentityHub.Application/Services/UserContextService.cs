@@ -12,13 +12,16 @@ public class UserContextService : IUserContextService
 {
     private readonly IPermissionService _permissionService;
     private readonly ILogger<UserContextService> _logger;
+    private readonly ITenantContextService _tenantContextService;
 
     public UserContextService(
         IPermissionService permissionService,
-        ILogger<UserContextService> logger)
+        ILogger<UserContextService> logger,
+        ITenantContextService tenantContextService)
     {
         _permissionService = permissionService ?? throw new ArgumentNullException(nameof(permissionService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _tenantContextService = tenantContextService ?? throw new ArgumentNullException(nameof(tenantContextService));
     }
 
     /// <summary>
@@ -33,7 +36,7 @@ public class UserContextService : IUserContextService
             return new UserContext { IsAuthenticated = false };
         }
 
-        var tenantId = GetClaimValue(claimsPrincipal, "tid") ?? string.Empty;
+        var tenantId = _tenantContextService.GetTenantContext().TenantId;
 
         if (string.IsNullOrEmpty(tenantId))
         {
@@ -47,7 +50,7 @@ public class UserContextService : IUserContextService
             UserId = GetClaimValue(claimsPrincipal, "oid") ?? GetClaimValue(claimsPrincipal, ClaimTypes.NameIdentifier) ?? string.Empty,
             Email = GetClaimValue(claimsPrincipal, "preferred_username") ?? GetClaimValue(claimsPrincipal, ClaimTypes.Email) ?? string.Empty,
             DisplayName = GetClaimValue(claimsPrincipal, "name") ?? GetClaimValue(claimsPrincipal, ClaimTypes.Name) ?? string.Empty,
-            TenantId = GetClaimValue(claimsPrincipal, "tid") ?? string.Empty,
+            TenantId = tenantId,
             CreatedAt = DateTime.UtcNow
         };
 

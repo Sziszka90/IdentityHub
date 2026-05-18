@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using IdentityHub.Domain.Models;
 
 namespace IdentityHub.API.Middleware;
