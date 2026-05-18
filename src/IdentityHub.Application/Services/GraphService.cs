@@ -42,7 +42,7 @@ public class GraphService : IGraphService
         {
             _logger.LogInformation("Fetching users from Graph API (top: {Top}, skip: {Skip})", top, skip);
 
-            var url = $"https://graph.microsoft.com/v1.0/users?$top={top}&$skip={skip}&$select=id,displayName,mail,userPrincipalName";
+            var url = $"https://graph.microsoft.com/v1.0/users?$top={top}&$select=id,displayName,mail,userPrincipalName";
             var users = await _graphClient.Users.WithUrl(url).GetAsync();
 
             return users?.Value?.ToList() ?? [];
