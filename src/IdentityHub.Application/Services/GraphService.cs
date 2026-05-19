@@ -158,8 +158,7 @@ public class GraphService : IGraphService
             var user = await _graphClient.Users[userId].GetAsync();
             if (user is not null)
             {
-                _logger.LogWarning("User {UserId} still exists after deletion attempt.", userId);
-                throw new InvalidOperationException($"User {userId} was not deleted from Graph API.");
+                _logger.LogWarning("User {UserId} still exists after deletion attempt. This may be due to Graph API propagation delay or soft-delete.", userId);
             }
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)

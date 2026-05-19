@@ -103,16 +103,16 @@ public class AdminController : ControllerBase
     [RequirePermission("users.update")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateUser([FromBody] UpdateUserRequest request)
+    public async Task<IActionResult> UpdateUser(string userId, [FromBody] UpdateUserRequest request)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
-        var user = await _graphService.GetUserAsync(request.Id);
+        var user = await _graphService.GetUserAsync(userId);
         if (user is null)
         {
-            return NotFound(new { message = $"User {request.Id} not found" });
+            return NotFound(new { message = $"User {userId} not found" });
         }
         _mapper.Map(request, user);
         var updatedUser = await _graphService.UpdateUserAsync(user);

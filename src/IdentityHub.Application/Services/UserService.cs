@@ -59,7 +59,7 @@ public class UserService : IUserService
             userPermissions.Add(new UserPermissionsResponse
             {
                 UserId = graphUser.Id,
-                Email = graphUser.Mail ?? graphUser.UserPrincipalName ?? "",
+                Email = graphUser.Mail ?? "",
                 DisplayName = graphUser.DisplayName ?? "",
                 TenantId = tenantContext.TenantId,
                 Groups = groupIds,
