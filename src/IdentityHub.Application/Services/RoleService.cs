@@ -1,5 +1,9 @@
 using IdentityHub.Application.Interfaces;
+using IdentityHub.Contracts.DTOs.Groups.Responses;
+using IdentityHub.Contracts.DTOs.Permissions.Responses;
+using IdentityHub.Contracts.DTOs.Roles.Responses;
 using IdentityHub.Domain.Entities;
+using IdentityHub.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
 namespace IdentityHub.Application.Services;
@@ -184,23 +188,34 @@ public class RoleService : IRoleService
     /// Gets all group-role mappings.
     /// </summary>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of <see cref="GroupRoleMapping"/> entities.</returns>
-    public Task<List<GroupRoleMapping>> GetAllGroupMappingsAsync(CancellationToken ct = default)
-        => _rolesRepository.GetAllGroupRoleMappingsAsync(ct);
+    /// <returns>List of resolved <see cref="GroupRoleMappingResponse"/> DTOs.</returns>
+    public async Task<List<GroupRoleMappingResponse>> GetAllGroupMappingsAsync(CancellationToken ct = default)
+    {
+        var mappings = await _rolesRepository.GetAllGroupRoleMappingsAsync(ct);
+        var resolvedMappings = await Task.WhenAll(mappings.Select(mapping => ResolveGroupRoleMappingAsync(mapping, ct)));
+        return resolvedMappings.Where(mapping => mapping is not null).Select(mapping => mapping!).ToList();
+    }
 
     /// <summary>
     /// Gets a group-role mapping by group name.
     /// </summary>
     /// <param name="groupName">Group name.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The matching <see cref="GroupRoleMapping"/> or <c>null</c> if not found.</returns>
-    public async Task<GroupRoleMapping?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default)
+    /// <returns>The matching resolved <see cref="GroupRoleMappingResponse"/> or <c>null</c> if not found.</returns>
+    public async Task<GroupRoleMappingResponse?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default)
     {
         if (!Guid.TryParse(groupName, out var groupGuid))
         {
             return null;
         }
-        return await _rolesRepository.GetGroupRoleMappingByGroupIdAsync(groupGuid, ct);
+
+        var mapping = await _rolesRepository.GetGroupRoleMappingByGroupIdAsync(groupGuid, ct);
+        if (mapping is null)
+        {
+            return null;
+        }
+
+        return await ResolveGroupRoleMappingAsync(mapping, ct);
     }
 
     /// <summary>
@@ -219,20 +234,15 @@ public class RoleService : IRoleService
     /// <param name="roleId">Role ID to map to the group.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The created <see cref="GroupRoleMapping"/> or <c>null</c> if a mapping for the group already exists.</returns>
-    public async Task<GroupRoleMapping?> CreateGroupMappingAsync(string groupName, Guid roleId, CancellationToken ct = default)
+    public async Task<GroupRoleMapping?> CreateGroupMappingAsync(Guid groupId, Guid roleId, CancellationToken ct = default)
     {
-        if (!Guid.TryParse(groupName, out var groupGuid))
-        {
-            return null;
-        }
-
-        if (await _rolesRepository.GetGroupRoleMappingByGroupIdAsync(groupGuid, ct) is not null)
+        if (await _rolesRepository.GetGroupRoleMappingByGroupIdAsync(groupId, ct) is not null)
         {
             return null;
         }
 
         return await _rolesRepository.CreateGroupRoleMappingAsync(
-            new GroupRoleMapping { GroupId = groupGuid, RoleId = roleId }, ct);
+            new GroupRoleMapping { GroupId = groupId, RoleId = roleId }, ct);
     }
 
     /// <summary>
@@ -263,4 +273,49 @@ public class RoleService : IRoleService
     /// <returns><c>true</c> if deleted; otherwise <c>false</c>.</returns>
     public Task<bool> DeleteGroupMappingAsync(Guid id, CancellationToken ct = default)
         => _rolesRepository.DeleteGroupRoleMappingAsync(id, ct);
+
+    private async Task<GroupRoleMappingResponse?> ResolveGroupRoleMappingAsync(GroupRoleMapping mapping, CancellationToken ct)
+    {
+        try
+        {
+            var group = await _graphService.GetGroupByIdAsync(mapping.GroupId.ToString());
+
+            return new GroupRoleMappingResponse
+            {
+                Id = mapping.Id,
+                Group = new GroupResponse
+                {
+                    Id = group?.Id ?? mapping.GroupId.ToString(),
+                    DisplayName = group?.DisplayName ?? mapping.GroupId.ToString(),
+                    MailNickname = group?.MailNickname,
+                    Mail = group?.Mail,
+                    Description = group?.Description,
+                    SecurityEnabled = group?.SecurityEnabled
+                },
+                Role = new RoleResponse
+                {
+                    Id = mapping.Role?.Id ?? Guid.Empty,
+                    Name = mapping.Role?.Name ?? string.Empty,
+                    Description = mapping.Role?.Description,
+                    CreatedAt = mapping.Role?.CreatedAt ?? default,
+                    Permissions = mapping.Role?.RolePermissions
+                        .Where(rp => rp.Permission != null)
+                        .Select(rp => new PermissionResponse
+                        {
+                            Id = rp.Permission!.Id,
+                            Name = rp.Permission.Name,
+                            Description = rp.Permission.Description,
+                            CreatedAt = rp.Permission.CreatedAt
+                        })
+                        .ToList() ?? []
+                },
+                CreatedAt = mapping.CreatedAt
+            };
+        }
+        catch (GraphResourceNotFoundException)
+        {
+            _logger.LogWarning("Graph group {GroupId} was not found while resolving role mapping {MappingId}", mapping.GroupId, mapping.Id);
+            return null;
+        }
+    }
 }

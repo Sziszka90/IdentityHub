@@ -65,7 +65,22 @@ public class GraphService : IGraphService
         {
             _logger.LogInformation("Fetching user {UserId} from Graph API", userId);
 
-            var user = await _graphClient.Users[userId].GetAsync();
+            var user = await _graphClient.Users[userId].GetAsync(r =>
+            {
+                r.QueryParameters.Select =
+                [
+                    "id",
+                    "userPrincipalName",
+                    "displayName",
+                    "mailNickname",
+                    "mail",
+                    "accountEnabled",
+                    "jobTitle",
+                    "department",
+                    "mobilePhone",
+                    "officeLocation"
+                ];
+            });
 
             return user;
         }
@@ -296,13 +311,24 @@ public class GraphService : IGraphService
         {
             _logger.LogInformation("Querying groups from Graph API. Filter: {DisplayName}", displayName);
 
-            var query = _graphClient.Groups;
-            if (!string.IsNullOrEmpty(displayName))
+            var result = await _graphClient.Groups.GetAsync(r =>
             {
-                query = query.WithUrl($"https://graph.microsoft.com/v1.0/groups?$filter=displayName eq '{displayName}'");
-            }
+                r.QueryParameters.Select =
+                [
+                    "id",
+                    "displayName",
+                    "mailNickname",
+                    "mail",
+                    "description",
+                    "securityEnabled"
+                ];
 
-            var result = await query.GetAsync();
+                if (!string.IsNullOrEmpty(displayName))
+                {
+                    r.QueryParameters.Filter = $"displayName eq '{displayName.Replace("'", "''")}'";
+                }
+            });
+
             return result?.Value?.ToList() ?? [];
         }
         catch (Exception ex)

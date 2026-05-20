@@ -1,4 +1,5 @@
 using IdentityHub.Domain.Entities;
+using IdentityHub.Contracts.DTOs.Roles.Responses;
 
 namespace IdentityHub.Application.Interfaces;
 
@@ -81,16 +82,16 @@ public interface IRoleService
     /// Gets all group-role mappings.
     /// </summary>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of <see cref="GroupRoleMapping"/> entities.</returns>
-    Task<List<GroupRoleMapping>> GetAllGroupMappingsAsync(CancellationToken ct = default);
+    /// <returns>List of resolved <see cref="GroupRoleMappingResponse"/> DTOs.</returns>
+    Task<List<GroupRoleMappingResponse>> GetAllGroupMappingsAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Gets a group-role mapping by group name.
     /// </summary>
     /// <param name="groupName">Group name.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The matching <see cref="GroupRoleMapping"/> or <c>null</c> if not found.</returns>
-    Task<GroupRoleMapping?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default);
+    /// <returns>The matching resolved <see cref="GroupRoleMappingResponse"/> or <c>null</c> if not found.</returns>
+    Task<GroupRoleMappingResponse?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default);
 
     /// <summary>
     /// Gets a group-role mapping by role ID.
@@ -103,11 +104,11 @@ public interface IRoleService
     /// <summary>
     /// Creates a new group-role mapping.
     /// </summary>
-    /// <param name="groupName">Group name.</param>
+    /// <param name="groupId">Group name.</param>
     /// <param name="roleId">Role ID to map to the group.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The created <see cref="GroupRoleMapping"/> or <c>null</c> if a mapping for the group already exists.</returns>
-    Task<GroupRoleMapping?> CreateGroupMappingAsync(string groupName, Guid roleId, CancellationToken ct = default);
+    Task<GroupRoleMapping?> CreateGroupMappingAsync(Guid groupId, Guid roleId, CancellationToken ct = default);
 
     /// <summary>
     /// Updates an existing group-role mapping.

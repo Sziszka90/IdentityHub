@@ -6,7 +6,9 @@ using IdentityHub.Client.Authorization;
 using IdentityHub.Contracts.DTOs.Permissions.Requests;
 using IdentityHub.Contracts.DTOs.Users.Requests;
 using IdentityHub.Contracts.DTOs.Groups.Requests;
+using IdentityHub.Contracts.DTOs.Groups.Responses;
 using IdentityHub.Contracts.DTOs.Roles.Requests;
+using IdentityHub.Contracts.DTOs.Roles.Responses;
 
 namespace IdentityHub.API.Controllers;
 
@@ -109,13 +111,19 @@ public class AdminController : ControllerBase
         {
             return BadRequest(ModelState);
         }
-        var user = await _graphService.GetUserAsync(userId);
-        if (user is null)
+
+        var updateUser = new User
         {
-            return NotFound(new { message = $"User {userId} not found" });
-        }
-        _mapper.Map(request, user);
-        var updatedUser = await _graphService.UpdateUserAsync(user);
+            Id = userId,
+            DisplayName = request.DisplayName,
+            AccountEnabled = request.AccountEnabled,
+            JobTitle = request.JobTitle,
+            Department = request.Department,
+            MobilePhone = request.MobilePhone,
+            OfficeLocation = request.OfficeLocation
+        };
+
+        var updatedUser = await _graphService.UpdateUserAsync(updateUser);
         return Ok(updatedUser);
     }
 
@@ -216,6 +224,26 @@ public class AdminController : ControllerBase
         return Ok(userPermissions);
     }
 
+    // --- GROUPS CRUD ---
+    [HttpGet("groups")]
+    [RequirePermission("groups.read")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetGroups([FromQuery] string? displayName = null)
+    {
+        var groups = await _graphService.QueryGroupsAsync(displayName);
+        var groupResponses = groups.Select(group => new GroupResponse
+        {
+            Id = group.Id ?? string.Empty,
+            DisplayName = group.DisplayName ?? string.Empty,
+            MailNickname = group.MailNickname,
+            Mail = group.Mail,
+            Description = group.Description,
+            SecurityEnabled = group.SecurityEnabled
+        }).ToList();
+
+        return Ok(new { count = groupResponses.Count, groups = groupResponses });
+    }
+
     // --- ROLES CRUD ---
     [HttpGet("roles")]
     [RequirePermission("roles.read")]
@@ -223,7 +251,8 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetRoles()
     {
         var roles = await _roleService.GetAllRolesAsync();
-        return Ok(new { count = roles.Count, roles });
+        var roleResponses = _mapper.Map<List<RoleResponse>>(roles);
+        return Ok(new { count = roleResponses.Count, roles = roleResponses });
     }
 
     [HttpGet("roles/{roleName}")]
@@ -389,12 +418,16 @@ public class AdminController : ControllerBase
         {
             return BadRequest(new { message = $"Invalid role ID: {request.RoleId}" });
         }
-        var groupRoleMapping = await _roleService.CreateGroupMappingAsync(request.GroupName, roleId);
+        if (!Guid.TryParse(request.GroupId, out var groupId))
+        {
+            return BadRequest(new { message = $"Invalid role ID: {request.RoleId}" });
+        }
+        var groupRoleMapping = await _roleService.CreateGroupMappingAsync(groupId, roleId);
         if (groupRoleMapping is null)
         {
             return BadRequest(new { message = "Failed to create group-role mapping" });
         }
-        return CreatedAtAction(nameof(GetGroupRoleMappingByGroupName), new { groupName = request.GroupName }, groupRoleMapping);
+        return CreatedAtAction(nameof(GetGroupRoleMappingByGroupName), new { groupName = request.GroupId }, groupRoleMapping);
     }
 
     [HttpPut("group-role-mappings/{id}")]

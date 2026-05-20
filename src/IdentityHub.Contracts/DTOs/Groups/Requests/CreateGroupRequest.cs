@@ -8,8 +8,7 @@ using System.ComponentModel.DataAnnotations;
 public class CreateGroupRequest
 {
     [Required]
-    [StringLength(100)]
-    public string GroupName { get; set; } = string.Empty;
+    public string GroupId { get; set; } = string.Empty;
 
     [Required]
     public string RoleId { get; set; } = string.Empty;
