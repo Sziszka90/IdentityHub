@@ -27,4 +27,6 @@ public class UpdateUserRequest
 
     [StringLength(50)]
     public string? OfficeLocation { get; set; }
+
+    public List<string> RoleIds { get; set;} = [];
 }

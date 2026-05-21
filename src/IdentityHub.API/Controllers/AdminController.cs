@@ -125,7 +125,12 @@ public class AdminController : ControllerBase
             OfficeLocation = request.OfficeLocation
         };
 
-        var updatedUser = await _graphService.UpdateUserAsync(updateUser);
+        var updatedUser = await _userService.UpdateUserWithRolesAsync(updateUser, request.RoleIds);
+        if (updatedUser is null)
+        {
+            return NotFound(new { message = $"User {userId} not found or update failed" });
+        }
+
         return Ok(_mapper.Map<UserResponse>(updatedUser));
     }
 

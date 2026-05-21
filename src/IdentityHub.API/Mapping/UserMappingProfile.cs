@@ -10,14 +10,27 @@ namespace IdentityHub.API.Mapping
     {
         public UserMappingProfile()
         {
-            CreateMap<UserContext, UserResponse>();
+            CreateMap<UserContext, UserResponse>()
+                .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
+                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
+                .ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.DisplayName))
+                .ForMember(dest => dest.TenantId, opt => opt.MapFrom(src => src.TenantId))
+                .ForMember(dest => dest.Groups, opt => opt.MapFrom(src => src.Groups))
+                .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => src.Roles))
+                .ForMember(dest => dest.Permissions, opt => opt.MapFrom(src => src.Permissions))
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
+                .ForMember(dest => dest.IsAuthenticated, opt => opt.MapFrom(src => src.IsAuthenticated));
 
             CreateMap<User, UserResponse>()
                 .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Mail ?? string.Empty))
+                .ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.DisplayName ?? string.Empty))
+                .ForMember(dest => dest.TenantId, opt => opt.MapFrom(src => string.Empty))
                 .ForMember(dest => dest.Groups, opt => opt.MapFrom(src => new List<string>()))
                 .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => new List<string>()))
-                .ForMember(dest => dest.Permissions, opt => opt.MapFrom(src => new List<string>()));
+                .ForMember(dest => dest.Permissions, opt => opt.MapFrom(src => new List<string>()))
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedDateTime ?? DateTimeOffset.MinValue))
+                .ForMember(dest => dest.IsAuthenticated, opt => opt.MapFrom(src => false));
 
             CreateMap<CreateUserRequest, User>()
                 .ForMember(dest => dest.AccountEnabled, opt => opt.MapFrom(src => src.AccountEnabled))

@@ -12,4 +12,6 @@ public record UserResponse
     public List<string> Groups { get; init; } = new();
     public List<string> Roles { get; init; } = new();
     public List<string> Permissions { get; init; } = new();
+    public DateTimeOffset CreatedAt { get; init; }
+    public bool IsAuthenticated { get; init;}
 }

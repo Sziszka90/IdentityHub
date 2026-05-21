@@ -221,6 +221,67 @@ public class UserService : IUserService
     }
 
     /// <summary>
+    /// Updates an existing user's profile and adjusts their Azure AD group memberships
+    /// based on the supplied role IDs. Only adds the user to groups they do not already belong to.
+    /// </summary>
+    public async Task<User?> UpdateUserWithRolesAsync(User user, List<string> roleIds)
+    {
+        var updatedUser = await _graphService.UpdateUserAsync(user);
+        if (updatedUser is null)
+        {
+            _logger.LogWarning("Failed to update user {UserId} in Graph API", user.Id);
+            return null;
+        }
+
+        if (roleIds is null || roleIds.Count == 0)
+        {
+            return updatedUser;
+        }
+
+        // Resolve role IDs → target group IDs
+        var targetGroupIds = new List<string>();
+        foreach (var roleIdStr in roleIds)
+        {
+            if (!Guid.TryParse(roleIdStr, out var roleGuid))
+            {
+                _logger.LogWarning("Invalid role ID format: {RoleId}", roleIdStr);
+                continue;
+            }
+
+            var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid);
+            if (mapping != null && mapping.GroupId != Guid.Empty)
+            {
+                targetGroupIds.Add(mapping.GroupId.ToString());
+            }
+            else
+            {
+                _logger.LogWarning("No group mapping found for role {RoleId}", roleGuid);
+            }
+        }
+
+        if (targetGroupIds.Count == 0)
+        {
+            return updatedUser;
+        }
+
+        // Only add the user to groups they are not already a member of
+        var currentGroupIds = await _graphService.GetUserTransitiveGroupIdsAsync(updatedUser.Id!);
+        var groupsToAdd = targetGroupIds
+            .Where(gid => !currentGroupIds.Contains(gid, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+
+        if (groupsToAdd.Count > 0)
+        {
+            await _graphService.AddUserToGroupsAsync(updatedUser.Id!, groupsToAdd);
+            _logger.LogInformation(
+                "Added user {UserId} to {Count} new group(s) during update",
+                updatedUser.Id, groupsToAdd.Count);
+        }
+
+        return updatedUser;
+    }
+
+    /// <summary>
     /// Assigns roles to a user via Azure AD group membership by role IDs.
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>

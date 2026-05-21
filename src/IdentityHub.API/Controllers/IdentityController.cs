@@ -1,3 +1,5 @@
+using AutoMapper;
+using IdentityHub.Contracts.DTOs.Users.Responses;
 using IdentityHub.Domain.Models;
 using IdentityHub.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -11,13 +13,16 @@ namespace IdentityHub.API.Controllers;
 public class IdentityController : ControllerBase
 {
     private readonly IUserContextService _userContextService;
+    private readonly IMapper _mapper;
     private readonly ILogger<IdentityController> _logger;
 
     public IdentityController(
         IUserContextService userContextService,
+        IMapper mapper,
         ILogger<IdentityController> logger)
     {
         _userContextService = userContextService;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -26,7 +31,7 @@ public class IdentityController : ControllerBase
     /// </summary>
     /// <returns>User context with identity information</returns>
     [HttpGet("me")]
-    [ProducesResponseType(typeof(UserContext), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetCurrentUser()
     {
@@ -43,7 +48,7 @@ public class IdentityController : ControllerBase
             _logger.LogInformation("User {UserId} from tenant {TenantId} retrieved their identity",
                 userContext.UserId, userContext.TenantId);
 
-            return Ok(userContext);
+            return Ok(_mapper.Map<UserResponse>(userContext));
         }
         catch (Exception ex)
         {

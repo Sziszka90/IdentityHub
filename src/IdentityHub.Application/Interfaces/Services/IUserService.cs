@@ -47,6 +47,15 @@ public interface IUserService
     Task<User?> CreateUserWithRolesAsync(User user, List<string> roleIds);
 
     /// <summary>
+    /// Updates an existing user's profile and adjusts their Azure AD group memberships
+    /// based on the supplied role IDs. Only adds the user to groups they do not already belong to.
+    /// </summary>
+    /// <param name="user">User entity with updated fields (must have <see cref="User.Id"/> set).</param>
+    /// <param name="roleIds">Desired list of role IDs to reflect via group membership.</param>
+    /// <returns>The updated <see cref="User"/> object, or <c>null</c> if the update failed.</returns>
+    Task<User?> UpdateUserWithRolesAsync(User user, List<string> roleIds);
+
+    /// <summary>
     /// Assigns roles to a user via Azure AD group membership by role IDs.
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
