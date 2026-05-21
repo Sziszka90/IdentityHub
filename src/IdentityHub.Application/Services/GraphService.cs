@@ -77,7 +77,6 @@ public class GraphService : IGraphService
                     "accountEnabled",
                     "jobTitle",
                     "department",
-                    "mobilePhone",
                     "officeLocation"
                 ];
             });
@@ -128,25 +127,25 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="user">User object with updated fields (must have <see cref="User.Id"/> set).</param>
     /// <returns>The updated User object.</returns>
-    public async Task<User> UpdateUserAsync(User user)
+    public async Task<User> UpdateUserAsync(User user, string userId)
     {
         try
         {
-            _logger.LogInformation("Updating user {UserId} in Graph API", user.Id);
+            _logger.LogInformation("Updating user {UserId} in Graph API", userId);
 
-            var existingUser = await _graphClient.Users[user.Id].GetAsync();
+            var existingUser = await _graphClient.Users[userId].GetAsync();
             if (existingUser == null)
             {
-                _logger.LogWarning("User {UserId} does not exist in Graph API", user.Id);
-                throw new KeyNotFoundException($"User with ID '{user.Id}' does not exist in Microsoft Graph.");
+                _logger.LogWarning("User {UserId} does not exist in Graph API", userId);
+                throw new KeyNotFoundException($"User with ID '{userId}' does not exist in Microsoft Graph.");
             }
 
-            _ = await _graphClient.Users[user.Id].PatchAsync(user);
+            _ = await _graphClient.Users[userId].PatchAsync(user);
 
-            var fetchedUser = await _graphClient.Users[user.Id].GetAsync();
+            var fetchedUser = await _graphClient.Users[userId].GetAsync();
             if (fetchedUser == null)
             {
-                _logger.LogError("Graph API returned null after updating user {UserId}", user.Id);
+                _logger.LogError("Graph API returned null after updating user {UserId}", userId);
                 throw new InvalidOperationException("Failed to fetch updated user from Microsoft Graph.");
             }
 
@@ -154,7 +153,7 @@ public class GraphService : IGraphService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating user {UserId} in Graph API", user.Id);
+            _logger.LogError(ex, "Error updating user {UserId} in Graph API", userId);
             throw;
         }
     }

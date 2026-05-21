@@ -53,7 +53,7 @@ public interface IUserService
     /// <param name="user">User entity with updated fields (must have <see cref="User.Id"/> set).</param>
     /// <param name="roleIds">Desired list of role IDs to reflect via group membership.</param>
     /// <returns>The updated <see cref="User"/> object, or <c>null</c> if the update failed.</returns>
-    Task<User?> UpdateUserWithRolesAsync(User user, List<string> roleIds);
+    Task<User?> UpdateUserWithRolesAsync(User user, string userId, List<string> roleIds);
 
     /// <summary>
     /// Assigns roles to a user via Azure AD group membership by role IDs.

@@ -37,9 +37,9 @@ public class FakeGraphService : IGraphService
         return Task.FromResult(user);
     }
 
-    public Task<User> UpdateUserAsync(User user)
+    public Task<User> UpdateUserAsync(User user, string userId)
     {
-        var existing = _users.FirstOrDefault(u => u.Id == user.Id);
+        var existing = _users.FirstOrDefault(u => u.Id == userId);
         if (existing is not null)
         {
             _users.Remove(existing);

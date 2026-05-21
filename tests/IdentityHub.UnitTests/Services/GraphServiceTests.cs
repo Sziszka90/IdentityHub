@@ -157,7 +157,7 @@ public class GraphServiceTests
 
         // Kiota throws ODataError on 404 before the null-check in the service can execute
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            svc.UpdateUserAsync(new Microsoft.Graph.Models.User { Id = "unknown" }));
+            svc.UpdateUserAsync(new Microsoft.Graph.Models.User { Id = "unknown" }, "unknown"));
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public class GraphServiceTests
         handler.Setup(r => r.RequestUri!.ToString().Contains("/users/u1") && r.Method == HttpMethod.Patch,
             HttpStatusCode.NoContent, "");
 
-        var result = await svc.UpdateUserAsync(new Microsoft.Graph.Models.User { Id = "u1", DisplayName = "Updated Name" });
+        var result = await svc.UpdateUserAsync(new Microsoft.Graph.Models.User { Id = "u1", DisplayName = "Updated Name" }, "u1");
 
         Assert.NotNull(result);
         Assert.Equal("u1", result.Id);

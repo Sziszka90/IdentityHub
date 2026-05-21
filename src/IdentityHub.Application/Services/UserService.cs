@@ -224,9 +224,9 @@ public class UserService : IUserService
     /// Updates an existing user's profile and adjusts their Azure AD group memberships
     /// based on the supplied role IDs. Only adds the user to groups they do not already belong to.
     /// </summary>
-    public async Task<User?> UpdateUserWithRolesAsync(User user, List<string> roleIds)
+    public async Task<User?> UpdateUserWithRolesAsync(User user, string userId, List<string> roleIds)
     {
-        var updatedUser = await _graphService.UpdateUserAsync(user);
+        var updatedUser = await _graphService.UpdateUserAsync(user, userId);
         if (updatedUser is null)
         {
             _logger.LogWarning("Failed to update user {UserId} in Graph API", user.Id);

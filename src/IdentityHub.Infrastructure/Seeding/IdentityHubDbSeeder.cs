@@ -97,7 +97,7 @@ public static class AuthorizationDbSeeder
         // ── 5. Create GroupRoleMapping for Admin group ──
         db.GroupRoleMappings.Add(new GroupRoleMapping
         {
-            GroupId = new Guid("e2ea7fc0-cd33-44e9-9a1e-a0187565987e"),
+            GroupId = new Guid("c4de85d6-0780-4280-aa9a-3a30f0a18878"),
             RoleId = adminRole.Id
         });
         await db.SaveChangesAsync();

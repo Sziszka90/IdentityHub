@@ -113,6 +113,15 @@ public class RoleService : IRoleService
         => _rolesRepository.GetRoleByNameAsync(name, ct);
 
     /// <summary>
+    /// Gets a role by its unique ID.
+    /// </summary>
+    /// <param name="roleId">Role ID.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The matching <see cref="Role"/> or <c>null</c> if not found.</returns>
+    public Task<Role?> GetRoleByIdAsync(Guid roleId, CancellationToken ct = default)
+        => _rolesRepository.GetRoleByIdAsync(roleId, ct);
+
+    /// <summary>
     /// Creates a new role with the specified name, description, and permissions.
     /// </summary>
     /// <param name="name">Role name.</param>
@@ -141,14 +150,14 @@ public class RoleService : IRoleService
     /// <summary>
     /// Updates an existing role's description and permissions.
     /// </summary>
-    /// <param name="name">Role name.</param>
+    /// <param name="roleId">Role ID.</param>
     /// <param name="description">New description (optional).</param>
     /// <param name="permissions">List of permissions to assign to the role.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The updated <see cref="Role"/> or <c>null</c> if not found.</returns>
-    public async Task<Role?> UpdateRoleAsync(string name, string? description, List<string> permissions, CancellationToken ct = default)
+    public async Task<Role?> UpdateRoleAsync(Guid roleId, string? description, List<string> permissions, CancellationToken ct = default)
     {
-        var role = await _rolesRepository.GetRoleByNameAsync(name, ct);
+        var role = await _rolesRepository.GetRoleByIdAsync(roleId, ct);
         if (role is null)
         {
             return null;
@@ -156,26 +165,20 @@ public class RoleService : IRoleService
 
         role.Description = description;
         await _rolesRepository.UpdateRoleAsync(role, ct);
-        await _permissionsRepository.SetRolePermissionsAsync(name, permissions, ct);
+        await _permissionsRepository.SetRolePermissionsAsync(role.Name, permissions, ct);
 
-        return await _rolesRepository.GetRoleByNameAsync(name, ct);
+        return await _rolesRepository.GetRoleByIdAsync(roleId, ct);
     }
 
     /// <summary>
-    /// Deletes a role by name.
+    /// Deletes a role by ID.
     /// </summary>
-    /// <param name="name">Role name.</param>
+    /// <param name="roleId">Role ID.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns><c>true</c> if deleted; otherwise <c>false</c>.</returns>
-    public async Task<bool> DeleteRoleAsync(string name, CancellationToken ct = default)
+    public Task<bool> DeleteRoleAsync(Guid roleId, CancellationToken ct = default)
     {
-        var role = await _rolesRepository.GetRoleByNameAsync(name, ct);
-        if (role is null)
-        {
-            return false;
-        }
-
-        return await _rolesRepository.DeleteRoleAsync(role.Id, ct);
+        return _rolesRepository.DeleteRoleAsync(roleId, ct);
     }
 
     // -------------------------------------------------------------------------

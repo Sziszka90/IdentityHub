@@ -22,9 +22,6 @@ public class UpdateUserRequest
     [StringLength(100)]
     public string? Department { get; set; }
 
-    [StringLength(20)]
-    public string? MobilePhone { get; set; }
-
     [StringLength(50)]
     public string? OfficeLocation { get; set; }
 

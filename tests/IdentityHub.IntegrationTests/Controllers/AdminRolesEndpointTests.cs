@@ -43,12 +43,14 @@ public class AdminRolesEndpointTests : IClassFixture<CustomWebApplicationFactory
         await db.SaveChangesAsync();
     }
 
-    private async Task SeedRoleAsync(string name, string? description = null)
+    private async Task<Guid> SeedRoleAsync(string name, string? description = null)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityHubDbContext>();
-        db.Roles.Add(new Role { Id = Guid.NewGuid(), Name = name, Description = description ?? string.Empty });
+        var role = new Role { Id = Guid.NewGuid(), Name = name, Description = description ?? string.Empty };
+        db.Roles.Add(role);
         await db.SaveChangesAsync();
+        return role.Id;
     }
 
     [Fact]
@@ -78,9 +80,9 @@ public class AdminRolesEndpointTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task GetRoleByName_ReturnsRole_WhenExists()
     {
-        await SeedRoleAsync("editor");
+        var roleId = await SeedRoleAsync("editor");
 
-        var response = await _client.GetAsync("/api/admin/roles/editor");
+        var response = await _client.GetAsync($"/api/admin/roles/{roleId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -88,7 +90,7 @@ public class AdminRolesEndpointTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task GetRoleByName_Returns404_WhenNotFound()
     {
-        var response = await _client.GetAsync("/api/admin/roles/nonexistent");
+        var response = await _client.GetAsync($"/api/admin/roles/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -121,9 +123,9 @@ public class AdminRolesEndpointTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task DeleteRole_ReturnsNoContent_WhenExists()
     {
-        await SeedRoleAsync("deleteme");
+        var roleId = await SeedRoleAsync("deleteme");
 
-        var response = await _client.DeleteAsync("/api/admin/roles/deleteme");
+        var response = await _client.DeleteAsync($"/api/admin/roles/{roleId}");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
@@ -131,7 +133,7 @@ public class AdminRolesEndpointTests : IClassFixture<CustomWebApplicationFactory
     [Fact]
     public async Task DeleteRole_Returns404_WhenNotFound()
     {
-        var response = await _client.DeleteAsync("/api/admin/roles/ghost");
+        var response = await _client.DeleteAsync($"/api/admin/roles/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

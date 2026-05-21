@@ -90,6 +90,18 @@ public class RoleServiceTests
     // -------------------------------------------------------------------------
 
     [Fact]
+    public async Task GetRoleByIdAsync_ReturnsRole_WhenExists()
+    {
+        var id = Guid.NewGuid();
+        var existing = new Role { Id = id, Name = "Admin" };
+        _rolesRepoMock.Setup(r => r.GetRoleByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(existing);
+
+        var result = await CreateService().GetRoleByIdAsync(id);
+
+        Assert.Equal(existing, result);
+    }
+
+    [Fact]
     public async Task CreateRoleAsync_ReturnsExistingRole_WhenNameAlreadyExists()
     {
         var existing = new Role { Id = Guid.NewGuid(), Name = "Admin" };
@@ -123,9 +135,10 @@ public class RoleServiceTests
     [Fact]
     public async Task UpdateRoleAsync_ReturnsNull_WhenRoleNotFound()
     {
-        _rolesRepoMock.Setup(r => r.GetRoleByNameAsync("NonExistent", It.IsAny<CancellationToken>())).ReturnsAsync((Role?)null);
+        var roleId = Guid.NewGuid();
+        _rolesRepoMock.Setup(r => r.GetRoleByIdAsync(roleId, It.IsAny<CancellationToken>())).ReturnsAsync((Role?)null);
 
-        var result = await CreateService().UpdateRoleAsync("NonExistent", "desc", []);
+        var result = await CreateService().UpdateRoleAsync(roleId, "desc", []);
 
         Assert.Null(result);
     }
@@ -133,15 +146,16 @@ public class RoleServiceTests
     [Fact]
     public async Task UpdateRoleAsync_UpdatesAndReturnsRole()
     {
-        var role = new Role { Id = Guid.NewGuid(), Name = "Admin", Description = "Old" };
+        var roleId = Guid.NewGuid();
+        var role = new Role { Id = roleId, Name = "Admin", Description = "Old" };
         var updated = new Role { Id = role.Id, Name = "Admin", Description = "New" };
 
-        _rolesRepoMock.SetupSequence(r => r.GetRoleByNameAsync("Admin", It.IsAny<CancellationToken>()))
+        _rolesRepoMock.SetupSequence(r => r.GetRoleByIdAsync(roleId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(role)
             .ReturnsAsync(updated);
         _rolesRepoMock.Setup(r => r.UpdateRoleAsync(It.IsAny<Role>(), It.IsAny<CancellationToken>())).ReturnsAsync(updated);
 
-        var result = await CreateService().UpdateRoleAsync("Admin", "New", ["users.read"]);
+        var result = await CreateService().UpdateRoleAsync(roleId, "New", ["users.read"]);
 
         Assert.NotNull(result);
         Assert.Equal("New", result!.Description);
@@ -155,9 +169,10 @@ public class RoleServiceTests
     [Fact]
     public async Task DeleteRoleAsync_ReturnsFalse_WhenRoleNotFound()
     {
-        _rolesRepoMock.Setup(r => r.GetRoleByNameAsync("Unknown", It.IsAny<CancellationToken>())).ReturnsAsync((Role?)null);
+        var roleId = Guid.NewGuid();
+        _rolesRepoMock.Setup(r => r.DeleteRoleAsync(roleId, It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var result = await CreateService().DeleteRoleAsync("Unknown");
+        var result = await CreateService().DeleteRoleAsync(roleId);
 
         Assert.False(result);
     }
@@ -166,10 +181,9 @@ public class RoleServiceTests
     public async Task DeleteRoleAsync_ReturnsTrue_WhenRoleDeleted()
     {
         var id = Guid.NewGuid();
-        _rolesRepoMock.Setup(r => r.GetRoleByNameAsync("Admin", It.IsAny<CancellationToken>())).ReturnsAsync(new Role { Id = id, Name = "Admin" });
         _rolesRepoMock.Setup(r => r.DeleteRoleAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
-        var result = await CreateService().DeleteRoleAsync("Admin");
+        var result = await CreateService().DeleteRoleAsync(id);
 
         Assert.True(result);
     }

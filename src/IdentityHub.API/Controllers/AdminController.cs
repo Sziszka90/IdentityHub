@@ -116,16 +116,14 @@ public class AdminController : ControllerBase
 
         var updateUser = new User
         {
-            Id = userId,
             DisplayName = request.DisplayName,
             AccountEnabled = request.AccountEnabled,
             JobTitle = request.JobTitle,
             Department = request.Department,
-            MobilePhone = request.MobilePhone,
             OfficeLocation = request.OfficeLocation
         };
 
-        var updatedUser = await _userService.UpdateUserWithRolesAsync(updateUser, request.RoleIds);
+        var updatedUser = await _userService.UpdateUserWithRolesAsync(updateUser, userId, request.RoleIds);
         if (updatedUser is null)
         {
             return NotFound(new { message = $"User {userId} not found or update failed" });
@@ -262,16 +260,21 @@ public class AdminController : ControllerBase
         return Ok(new { count = roleResponses.Count, roles = roleResponses });
     }
 
-    [HttpGet("roles/{roleName}")]
+    [HttpGet("roles/{roleId}")]
     [RequirePermission("roles.read")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetRoleByName(string roleName)
+    public async Task<IActionResult> GetRoleById(string roleId)
     {
-        var role = await _roleService.GetRoleByNameAsync(roleName);
+        if (!Guid.TryParse(roleId, out var parsedRoleId))
+        {
+            return BadRequest(new { message = $"Invalid role ID: {roleId}" });
+        }
+
+        var role = await _roleService.GetRoleByIdAsync(parsedRoleId);
         if (role is null)
         {
-            return NotFound(new { message = $"Role {roleName} not found" });
+            return NotFound(new { message = $"Role {roleId} not found" });
         }
 
         return Ok(role);
@@ -292,37 +295,48 @@ public class AdminController : ControllerBase
         {
             return BadRequest(new { message = "Failed to create role" });
         }
-        return CreatedAtAction(nameof(GetRoleByName), new { roleName = request.Name }, role);
+        return CreatedAtAction(nameof(GetRoleById), new { roleId = role.Id }, role);
     }
 
-    [HttpPut("roles/{roleName}")]
+    [HttpPut("roles/{roleId}")]
     [RequirePermission("roles.update")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateRole(string roleName, [FromBody] UpdateRoleRequest request)
+    public async Task<IActionResult> UpdateRole(string roleId, [FromBody] UpdateRoleRequest request)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
-        var role = await _roleService.UpdateRoleAsync(roleName, request.Description, request.Permissions);
+
+        if (!Guid.TryParse(roleId, out var parsedRoleId))
+        {
+            return BadRequest(new { message = $"Invalid role ID: {roleId}" });
+        }
+
+        var role = await _roleService.UpdateRoleAsync(parsedRoleId, request.Description, request.Permissions);
         if (role is null)
         {
-            return NotFound(new { message = $"Role {roleName} not found" });
+            return NotFound(new { message = $"Role {roleId} not found" });
         }
         return Ok(role);
     }
 
-    [HttpDelete("roles/{roleName}")]
+    [HttpDelete("roles/{roleId}")]
     [RequirePermission("roles.delete")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteRole(string roleName)
+    public async Task<IActionResult> DeleteRole(string roleId)
     {
-        var deleted = await _roleService.DeleteRoleAsync(roleName);
+        if (!Guid.TryParse(roleId, out var parsedRoleId))
+        {
+            return BadRequest(new { message = $"Invalid role ID: {roleId}" });
+        }
+
+        var deleted = await _roleService.DeleteRoleAsync(parsedRoleId);
         if (!deleted)
         {
-            return NotFound(new { message = $"Role {roleName} not found" });
+            return NotFound(new { message = $"Role {roleId} not found" });
         }
 
         return NoContent();

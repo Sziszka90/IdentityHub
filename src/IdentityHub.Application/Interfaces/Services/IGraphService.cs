@@ -37,8 +37,9 @@ public interface IGraphService
     /// Update an existing user in Microsoft Graph.
     /// </summary>
     /// <param name="user">User object with updated fields (must have <see cref="User.Id"/> set).</param>
+    /// <param name="userId">User id</param>
     /// <returns>The updated User object.</returns>
-    Task<User> UpdateUserAsync(User user);
+    Task<User> UpdateUserAsync(User user, string userId);
 
     /// <summary>
     /// Delete a user from Microsoft Graph.

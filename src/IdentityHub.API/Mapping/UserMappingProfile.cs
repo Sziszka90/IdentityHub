@@ -19,7 +19,11 @@ namespace IdentityHub.API.Mapping
                 .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => src.Roles))
                 .ForMember(dest => dest.Permissions, opt => opt.MapFrom(src => src.Permissions))
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
-                .ForMember(dest => dest.IsAuthenticated, opt => opt.MapFrom(src => src.IsAuthenticated));
+                .ForMember(dest => dest.IsAuthenticated, opt => opt.MapFrom(src => src.IsAuthenticated))
+                .ForMember(dest => dest.AccountEnabled, opt => opt.MapFrom(src => true))
+                .ForMember(dest => dest.JobTitle, opt => opt.MapFrom(src => string.Empty))
+                .ForMember(dest => dest.Department, opt => opt.MapFrom(src => string.Empty))
+                .ForMember(dest => dest.OfficeLocation, opt => opt.MapFrom(src => string.Empty));
 
             CreateMap<User, UserResponse>()
                 .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.Id))
@@ -30,7 +34,11 @@ namespace IdentityHub.API.Mapping
                 .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => new List<string>()))
                 .ForMember(dest => dest.Permissions, opt => opt.MapFrom(src => new List<string>()))
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedDateTime ?? DateTimeOffset.MinValue))
-                .ForMember(dest => dest.IsAuthenticated, opt => opt.MapFrom(src => false));
+                .ForMember(dest => dest.IsAuthenticated, opt => opt.MapFrom(src => false))
+                .ForMember(dest => dest.AccountEnabled, opt => opt.MapFrom(src => src.AccountEnabled ?? true))
+                .ForMember(dest => dest.JobTitle, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.JobTitle) ? null : src.JobTitle))
+                .ForMember(dest => dest.Department, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.Department) ? null : src.Department))
+                .ForMember(dest => dest.OfficeLocation, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.OfficeLocation) ? null : src.OfficeLocation));
 
             CreateMap<CreateUserRequest, User>()
                 .ForMember(dest => dest.AccountEnabled, opt => opt.MapFrom(src => src.AccountEnabled))
@@ -41,14 +49,16 @@ namespace IdentityHub.API.Mapping
                     Password = src.Password,
                     ForceChangePasswordNextSignIn = true
                 }))
-                .ForMember(dest => dest.Id, opt => opt.Ignore());
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.JobTitle, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.JobTitle) ? null : src.JobTitle))
+                .ForMember(dest => dest.Department, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.Department) ? null : src.Department))
+                .ForMember(dest => dest.OfficeLocation, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.OfficeLocation) ? null : src.OfficeLocation));
 
             CreateMap<UpdateUserRequest, User>()
                 .ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.DisplayName))
                 .ForMember(dest => dest.AccountEnabled, opt => opt.MapFrom(src => src.AccountEnabled))
                 .ForMember(dest => dest.JobTitle, opt => opt.MapFrom(src => src.JobTitle))
                 .ForMember(dest => dest.Department, opt => opt.MapFrom(src => src.Department))
-                .ForMember(dest => dest.MobilePhone, opt => opt.MapFrom(src => src.MobilePhone))
                 .ForMember(dest => dest.OfficeLocation, opt => opt.MapFrom(src => src.OfficeLocation))
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id.ToString()));
 
@@ -56,10 +66,9 @@ namespace IdentityHub.API.Mapping
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => Guid.Parse(src.Id!)))
                 .ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.DisplayName))
                 .ForMember(dest => dest.AccountEnabled, opt => opt.MapFrom(src => src.AccountEnabled ?? true))
-                .ForMember(dest => dest.JobTitle, opt => opt.MapFrom(src => src.JobTitle))
-                .ForMember(dest => dest.Department, opt => opt.MapFrom(src => src.Department))
-                .ForMember(dest => dest.MobilePhone, opt => opt.MapFrom(src => src.MobilePhone))
-                .ForMember(dest => dest.OfficeLocation, opt => opt.MapFrom(src => src.OfficeLocation));
+                .ForMember(dest => dest.JobTitle, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.JobTitle) ? null : src.JobTitle))
+                .ForMember(dest => dest.Department, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.Department) ? null : src.Department))
+                .ForMember(dest => dest.OfficeLocation, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.OfficeLocation) ? null : src.OfficeLocation));
         }
     }
 }

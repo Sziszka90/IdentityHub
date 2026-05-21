@@ -29,4 +29,13 @@ public class CreateUserRequest
     public bool AccountEnabled { get; set; } = true;
 
     public List<string> RoleIds { get; set; } = new();
+    
+    [StringLength(100)]
+    public string? JobTitle { get; set; }
+
+    [StringLength(100)]
+    public string? Department { get; set; }
+
+    [StringLength(50)]
+    public string? OfficeLocation { get; set; }
 }

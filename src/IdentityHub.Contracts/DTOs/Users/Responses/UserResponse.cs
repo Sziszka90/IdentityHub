@@ -13,5 +13,9 @@ public record UserResponse
     public List<string> Roles { get; init; } = new();
     public List<string> Permissions { get; init; } = new();
     public DateTimeOffset CreatedAt { get; init; }
-    public bool IsAuthenticated { get; init;}
+    public bool IsAuthenticated { get; init; }
+    public bool AccountEnabled { get; init; } = true;
+    public string JobTitle { get; init; } = string.Empty;
+    public string Department { get; init; } = string.Empty;
+    public string OfficeLocation { get; init; } = string.Empty;
 }
