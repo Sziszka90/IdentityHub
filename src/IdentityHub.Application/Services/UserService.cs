@@ -264,10 +264,13 @@ public class UserService : IUserService
             return updatedUser;
         }
 
-        // Only add the user to groups they are not already a member of
+        // Converge the user's memberships to the requested role set.
         var currentGroupIds = await _graphService.GetUserTransitiveGroupIdsAsync(updatedUser.Id!);
         var groupsToAdd = targetGroupIds
             .Where(gid => !currentGroupIds.Contains(gid, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+        var groupsToRemove = currentGroupIds
+            .Where(gid => !targetGroupIds.Contains(gid, StringComparer.OrdinalIgnoreCase))
             .ToList();
 
         if (groupsToAdd.Count > 0)
@@ -276,6 +279,14 @@ public class UserService : IUserService
             _logger.LogInformation(
                 "Added user {UserId} to {Count} new group(s) during update",
                 updatedUser.Id, groupsToAdd.Count);
+        }
+
+        if (groupsToRemove.Count > 0)
+        {
+            await _graphService.RemoveUserFromGroupsAsync(updatedUser.Id!, groupsToRemove);
+            _logger.LogInformation(
+                "Removed user {UserId} from {Count} stale group(s) during update",
+                updatedUser.Id, groupsToRemove.Count);
         }
 
         return updatedUser;
