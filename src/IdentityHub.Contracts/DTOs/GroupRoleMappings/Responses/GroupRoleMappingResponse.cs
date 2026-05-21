@@ -1,6 +1,7 @@
 using IdentityHub.Contracts.DTOs.Groups.Responses;
+using IdentityHub.Contracts.DTOs.Roles.Responses;
 
-namespace IdentityHub.Contracts.DTOs.Roles.Responses;
+namespace IdentityHub.Contracts.DTOs.GroupRoleMappings.Responses;
 
 public class GroupRoleMappingResponse
 {

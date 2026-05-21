@@ -186,7 +186,7 @@ public class RoleServiceTests
         _rolesRepoMock.Setup(r => r.GetGroupRoleMappingByGroupIdAsync(groupId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GroupRoleMapping { GroupId = groupId, RoleId = roleId });
 
-        var result = await CreateService().CreateGroupMappingAsync(groupId.ToString(), roleId);
+        var result = await CreateService().CreateGroupMappingAsync(groupId, roleId);
 
         Assert.Null(result);
         _rolesRepoMock.Verify(r => r.CreateGroupRoleMappingAsync(It.IsAny<GroupRoleMapping>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -202,7 +202,7 @@ public class RoleServiceTests
         _rolesRepoMock.Setup(r => r.GetGroupRoleMappingByGroupIdAsync(groupId, It.IsAny<CancellationToken>())).ReturnsAsync((GroupRoleMapping?)null);
         _rolesRepoMock.Setup(r => r.CreateGroupRoleMappingAsync(It.IsAny<GroupRoleMapping>(), It.IsAny<CancellationToken>())).ReturnsAsync(mapping);
 
-        var result = await CreateService().CreateGroupMappingAsync(groupId.ToString(), roleId);
+        var result = await CreateService().CreateGroupMappingAsync(groupId, roleId);
 
         Assert.NotNull(result);
         Assert.Equal(groupId, result!.GroupId);
@@ -217,7 +217,7 @@ public class RoleServiceTests
     {
         _rolesRepoMock.Setup(r => r.GetAllGroupRoleMappingsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
-        var result = await CreateService().UpdateGroupMappingAsync(Guid.NewGuid(), Guid.NewGuid());
+        var result = await CreateService().UpdateGroupMappingAsync(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         Assert.Null(result);
     }
@@ -234,7 +234,7 @@ public class RoleServiceTests
         _rolesRepoMock.Setup(r => r.GetAllGroupRoleMappingsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([existing]);
         _rolesRepoMock.Setup(r => r.UpdateGroupRoleMappingAsync(It.IsAny<GroupRoleMapping>(), It.IsAny<CancellationToken>())).ReturnsAsync(updated);
 
-        var result = await CreateService().UpdateGroupMappingAsync(id, newRoleId);
+        var result = await CreateService().UpdateGroupMappingAsync(id, groupId, newRoleId);
 
         Assert.NotNull(result);
         Assert.Equal(newRoleId, result!.RoleId);

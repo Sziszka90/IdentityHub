@@ -36,14 +36,14 @@ public class UserService : IUserService
     /// Gets all users with their effective permissions (tenant-scoped).
     /// </summary>
     /// <returns>List of users with their resolved groups, roles, and permissions.</returns>
-    public async Task<List<UserPermissionsResponse>> GetUsersWithPermissionsAsync()
+    public async Task<List<UserResponse>> GetUsersWithPermissionsAsync()
     {
         var tenantContext = _tenantContextService.GetTenantContext();
 
         _logger.LogInformation("Getting users for tenant: {TenantId}", tenantContext.TenantId);
 
         var graphUsers = await _graphService.GetUsersAsync(top: 100);
-        var userPermissions = new List<UserPermissionsResponse>();
+        var userPermissions = new List<UserResponse>();
 
         foreach (var graphUser in graphUsers)
         {
@@ -56,7 +56,7 @@ public class UserService : IUserService
             var roles = await _permissionService.MapGroupsToRolesAsync(groupIds);
             var permissions = await _permissionService.ResolvePermissionsAsync(roles);
 
-            userPermissions.Add(new UserPermissionsResponse
+            userPermissions.Add(new UserResponse
             {
                 UserId = graphUser.Id,
                 Email = graphUser.Mail ?? "",
@@ -76,7 +76,7 @@ public class UserService : IUserService
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
     /// <returns>The user's permissions DTO, or <c>null</c> if the user was not found.</returns>
-    public async Task<UserPermissionsResponse?> GetUserPermissionsAsync(string userId)
+    public async Task<UserResponse?> GetUserPermissionsAsync(string userId)
     {
         if (string.IsNullOrEmpty(userId))
         {
@@ -98,7 +98,7 @@ public class UserService : IUserService
         var roles = await _permissionService.MapGroupsToRolesAsync(groupIds);
         var permissions = await _permissionService.ResolvePermissionsAsync(roles);
 
-        return new UserPermissionsResponse
+        return new UserResponse
         {
             UserId = graphUser.Id ?? userId,
             Email = graphUser.Mail ?? graphUser.UserPrincipalName ?? "",
@@ -226,7 +226,7 @@ public class UserService : IUserService
     /// <param name="userId">The unique identifier of the user.</param>
     /// <param name="roleIds">List of role IDs to assign.</param>
     /// <returns>Updated permissions DTO for the user, or <c>null</c> if the user or any role was not found.</returns>
-    public async Task<UserPermissionsResponse?> AssignRolesToUserAsync(string userId, List<string> roleIds)
+    public async Task<UserResponse?> AssignRolesToUserAsync(string userId, List<string> roleIds)
     {
         if (string.IsNullOrEmpty(userId) || roleIds is null || roleIds.Count == 0)
         {
@@ -279,7 +279,7 @@ public class UserService : IUserService
 
         _logger.LogInformation("Assigned roles {Roles} to user {UserId} and updated group memberships", string.Join(", ", roleIds), userId);
 
-        return new UserPermissionsResponse
+        return new UserResponse
         {
             UserId = userId,
             Email = graphUser.Mail ?? graphUser.UserPrincipalName ?? string.Empty,
@@ -297,7 +297,7 @@ public class UserService : IUserService
     /// <param name="userId">The unique identifier of the user.</param>
     /// <param name="roleIds">List of role IDs to remove.</param>
     /// <returns>Updated permissions DTO for the user, or <c>null</c> if the user was not found.</returns>
-    public async Task<UserPermissionsResponse?> RemoveRolesFromUserAsync(string userId, List<string> roleIds)
+    public async Task<UserResponse?> RemoveRolesFromUserAsync(string userId, List<string> roleIds)
     {
         if (string.IsNullOrEmpty(userId) || roleIds is null || roleIds.Count == 0)
         {
@@ -344,7 +344,7 @@ public class UserService : IUserService
         var remainingRoles = await _permissionService.MapGroupsToRolesAsync(remainingGroupIds);
         var remainingPermissions = await _permissionService.ResolvePermissionsAsync(remainingRoles);
 
-        return new UserPermissionsResponse
+        return new UserResponse
         {
             UserId = userId,
             Email = graphUser.Mail ?? graphUser.UserPrincipalName ?? string.Empty,
@@ -381,7 +381,7 @@ public class UserService : IUserService
     /// <summary>
     /// Checks if the user has the specified permission, supporting wildcards (e.g., "users.*", "*").
     /// </summary>
-    public bool HasPermission(UserPermissionsResponse? response, string requiredPermission)
+    public bool HasPermission(UserResponse? response, string requiredPermission)
     {
         if (response?.Permissions == null)
             return false;

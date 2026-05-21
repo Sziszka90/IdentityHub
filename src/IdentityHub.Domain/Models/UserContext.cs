@@ -78,7 +78,7 @@ public class UserContext
     /// <summary>
     /// Timestamp when the user context was created
     /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
     /// Whether the user has been authenticated

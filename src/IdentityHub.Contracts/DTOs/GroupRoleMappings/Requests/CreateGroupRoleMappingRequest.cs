@@ -1,11 +1,11 @@
-namespace IdentityHub.Contracts.DTOs.Groups.Requests;
+namespace IdentityHub.Contracts.DTOs.GroupRoleMappings.Requests;
 
 /// <summary>
 /// DTO for creating a group mapping.
 /// </summary>
 using System.ComponentModel.DataAnnotations;
 
-public class CreateGroupRequest
+public class CreateGroupRoleMappingRequest
 {
     [Required]
     public string GroupId { get; set; } = string.Empty;

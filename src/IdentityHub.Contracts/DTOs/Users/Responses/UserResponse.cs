@@ -3,7 +3,7 @@ namespace IdentityHub.Contracts.DTOs.Users.Responses;
 /// <summary>
 /// Response containing user's effective permissions
 /// </summary>
-public record UserPermissionsResponse
+public record UserResponse
 {
     public string UserId { get; init; } = string.Empty;
     public string Email { get; init; } = string.Empty;

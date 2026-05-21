@@ -1,5 +1,7 @@
 using AutoMapper;
 using IdentityHub.Contracts.DTOs.Users.Requests;
+using IdentityHub.Contracts.DTOs.Users.Responses;
+using IdentityHub.Domain.Models;
 using Microsoft.Graph.Models;
 
 namespace IdentityHub.API.Mapping
@@ -8,6 +10,15 @@ namespace IdentityHub.API.Mapping
     {
         public UserMappingProfile()
         {
+            CreateMap<UserContext, UserResponse>();
+
+            CreateMap<User, UserResponse>()
+                .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Mail ?? string.Empty))
+                .ForMember(dest => dest.Groups, opt => opt.MapFrom(src => new List<string>()))
+                .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => new List<string>()))
+                .ForMember(dest => dest.Permissions, opt => opt.MapFrom(src => new List<string>()));
+
             CreateMap<CreateUserRequest, User>()
                 .ForMember(dest => dest.AccountEnabled, opt => opt.MapFrom(src => src.AccountEnabled))
                 .ForMember(dest => dest.MailNickname, opt => opt.MapFrom(src => src.MailNickname))
@@ -29,7 +40,7 @@ namespace IdentityHub.API.Mapping
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id.ToString()));
 
             CreateMap<User, UpdateUserRequest>()
-                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => Guid.Parse(src.Id! )))
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => Guid.Parse(src.Id!)))
                 .ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.DisplayName))
                 .ForMember(dest => dest.AccountEnabled, opt => opt.MapFrom(src => src.AccountEnabled ?? true))
                 .ForMember(dest => dest.JobTitle, opt => opt.MapFrom(src => src.JobTitle))

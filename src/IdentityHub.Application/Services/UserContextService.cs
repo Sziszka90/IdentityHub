@@ -11,15 +11,18 @@ namespace IdentityHub.Application.Services;
 public class UserContextService : IUserContextService
 {
     private readonly IPermissionService _permissionService;
+    private readonly IGraphService _graphService;
     private readonly ILogger<UserContextService> _logger;
     private readonly ITenantContextService _tenantContextService;
 
     public UserContextService(
         IPermissionService permissionService,
+        IGraphService graphService,
         ILogger<UserContextService> logger,
         ITenantContextService tenantContextService)
     {
         _permissionService = permissionService ?? throw new ArgumentNullException(nameof(permissionService));
+        _graphService = graphService ?? throw new ArgumentNullException(nameof(graphService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _tenantContextService = tenantContextService ?? throw new ArgumentNullException(nameof(tenantContextService));
     }
@@ -57,14 +60,18 @@ public class UserContextService : IUserContextService
             CreatedAt = DateTime.UtcNow
         };
 
+        if (string.IsNullOrEmpty(userContext.UserId))
+        {
+            _logger.LogWarning("Missing user ID in token claims");
+            return new UserContext { IsAuthenticated = false };
+        }
+
         var tokenRoles = claimsPrincipal.Claims
             .Where(c => c.Type == ClaimTypes.Role || c.Type == "roles")
             .Select(c => c.Value)
             .ToList();
 
-        userContext.Groups = [.. claimsPrincipal.Claims
-            .Where(c => c.Type == "groups")
-            .Select(c => c.Value)];
+        userContext.Groups = await _graphService.GetUserTransitiveGroupIdsAsync(userContext.UserId);
 
         var rolesFromGroups = await _permissionService.MapGroupsToRolesAsync(userContext.Groups);
 

@@ -1,5 +1,5 @@
 using IdentityHub.Domain.Entities;
-using IdentityHub.Contracts.DTOs.Roles.Responses;
+using IdentityHub.Contracts.DTOs.GroupRoleMappings.Responses;
 
 namespace IdentityHub.Application.Interfaces;
 
@@ -82,16 +82,16 @@ public interface IRoleService
     /// Gets all group-role mappings.
     /// </summary>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of resolved <see cref="GroupRoleMappingResponse"/> DTOs.</returns>
-    Task<List<GroupRoleMappingResponse>> GetAllGroupMappingsAsync(CancellationToken ct = default);
+    /// <returns>List of resolved <see cref="GroupRoleMapping"/> domain model.</returns>
+    Task<List<GroupRoleMapping>> GetAllGroupMappingsAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Gets a group-role mapping by group name.
     /// </summary>
     /// <param name="groupName">Group name.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The matching resolved <see cref="GroupRoleMappingResponse"/> or <c>null</c> if not found.</returns>
-    Task<GroupRoleMappingResponse?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default);
+    /// <returns>The matching resolved <see cref="GroupRoleMapping"/> or <c>null</c> if not found.</returns>
+    Task<GroupRoleMapping?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default);
 
     /// <summary>
     /// Gets a group-role mapping by role ID.
@@ -117,7 +117,7 @@ public interface IRoleService
     /// <param name="roleId">New role ID to assign to the group.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The updated <see cref="GroupRoleMapping"/> or <c>null</c> if not found.</returns>
-    Task<GroupRoleMapping?> UpdateGroupMappingAsync(Guid id, Guid roleId, CancellationToken ct = default);
+    Task<GroupRoleMapping?> UpdateGroupMappingAsync(Guid id, Guid groupId, Guid roleId, CancellationToken ct = default);
 
     /// <summary>
     /// Deletes a group-role mapping by ID.

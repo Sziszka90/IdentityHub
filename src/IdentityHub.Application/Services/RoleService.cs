@@ -1,10 +1,8 @@
 using IdentityHub.Application.Interfaces;
-using IdentityHub.Contracts.DTOs.Groups.Responses;
-using IdentityHub.Contracts.DTOs.Permissions.Responses;
-using IdentityHub.Contracts.DTOs.Roles.Responses;
 using IdentityHub.Domain.Entities;
 using IdentityHub.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph.Models;
 
 namespace IdentityHub.Application.Services;
 
@@ -188,8 +186,8 @@ public class RoleService : IRoleService
     /// Gets all group-role mappings.
     /// </summary>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of resolved <see cref="GroupRoleMappingResponse"/> DTOs.</returns>
-    public async Task<List<GroupRoleMappingResponse>> GetAllGroupMappingsAsync(CancellationToken ct = default)
+    /// <returns>List of resolved <see cref="GroupRoleMapping"/> DTOs.</returns>
+    public async Task<List<GroupRoleMapping>> GetAllGroupMappingsAsync(CancellationToken ct = default)
     {
         var mappings = await _rolesRepository.GetAllGroupRoleMappingsAsync(ct);
         var resolvedMappings = await Task.WhenAll(mappings.Select(mapping => ResolveGroupRoleMappingAsync(mapping, ct)));
@@ -201,8 +199,8 @@ public class RoleService : IRoleService
     /// </summary>
     /// <param name="groupName">Group name.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The matching resolved <see cref="GroupRoleMappingResponse"/> or <c>null</c> if not found.</returns>
-    public async Task<GroupRoleMappingResponse?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default)
+    /// <returns>The matching resolved <see cref="GroupRoleMapping"/> or <c>null</c> if not found.</returns>
+    public async Task<GroupRoleMapping?> GetGroupMappingByGroupNameAsync(string groupName, CancellationToken ct = default)
     {
         if (!Guid.TryParse(groupName, out var groupGuid))
         {
@@ -252,17 +250,19 @@ public class RoleService : IRoleService
     /// <param name="roleId">New role ID to assign to the group.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The updated <see cref="GroupRoleMapping"/> or <c>null</c> if not found.</returns>
-    public async Task<GroupRoleMapping?> UpdateGroupMappingAsync(Guid id, Guid roleId, CancellationToken ct = default)
+    public async Task<GroupRoleMapping?> UpdateGroupMappingAsync(Guid id, Guid groupId, Guid roleId, CancellationToken ct = default)
     {
         var mappings = await _rolesRepository.GetAllGroupRoleMappingsAsync(ct);
         var mapping = mappings.FirstOrDefault(m => m.Id == id);
-        if (mapping is null)
+
+        if (mapping is not null)
         {
-            return null;
+            mapping.RoleId = roleId;
+            mapping.GroupId = groupId;
+            return await _rolesRepository.UpdateGroupRoleMappingAsync(mapping, ct);
         }
 
-        mapping.RoleId = roleId;
-        return await _rolesRepository.UpdateGroupRoleMappingAsync(mapping, ct);
+        return null;
     }
 
     /// <summary>
@@ -274,16 +274,16 @@ public class RoleService : IRoleService
     public Task<bool> DeleteGroupMappingAsync(Guid id, CancellationToken ct = default)
         => _rolesRepository.DeleteGroupRoleMappingAsync(id, ct);
 
-    private async Task<GroupRoleMappingResponse?> ResolveGroupRoleMappingAsync(GroupRoleMapping mapping, CancellationToken ct)
+    private async Task<GroupRoleMapping?> ResolveGroupRoleMappingAsync(GroupRoleMapping mapping, CancellationToken ct)
     {
         try
         {
             var group = await _graphService.GetGroupByIdAsync(mapping.GroupId.ToString());
 
-            return new GroupRoleMappingResponse
+            return new GroupRoleMapping
             {
                 Id = mapping.Id,
-                Group = new GroupResponse
+                Group = new Group
                 {
                     Id = group?.Id ?? mapping.GroupId.ToString(),
                     DisplayName = group?.DisplayName ?? mapping.GroupId.ToString(),
@@ -292,22 +292,14 @@ public class RoleService : IRoleService
                     Description = group?.Description,
                     SecurityEnabled = group?.SecurityEnabled
                 },
-                Role = new RoleResponse
+                Role = new Role
                 {
                     Id = mapping.Role?.Id ?? Guid.Empty,
                     Name = mapping.Role?.Name ?? string.Empty,
                     Description = mapping.Role?.Description,
                     CreatedAt = mapping.Role?.CreatedAt ?? default,
-                    Permissions = mapping.Role?.RolePermissions
-                        .Where(rp => rp.Permission != null)
-                        .Select(rp => new PermissionResponse
-                        {
-                            Id = rp.Permission!.Id,
-                            Name = rp.Permission.Name,
-                            Description = rp.Permission.Description,
-                            CreatedAt = rp.Permission.CreatedAt
-                        })
-                        .ToList() ?? []
+                    RolePermissions =
+                        mapping.Role is not null ? mapping.Role.RolePermissions.ToList() : []
                 },
                 CreatedAt = mapping.CreatedAt
             };

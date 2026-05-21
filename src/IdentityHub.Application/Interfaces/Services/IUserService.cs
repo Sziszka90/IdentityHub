@@ -22,14 +22,14 @@ public interface IUserService
     /// Gets all users with their effective permissions (tenant-scoped).
     /// </summary>
     /// <returns>List of users with their resolved groups, roles, and permissions.</returns>
-    Task<List<UserPermissionsResponse>> GetUsersWithPermissionsAsync();
+    Task<List<UserResponse>> GetUsersWithPermissionsAsync();
 
     /// <summary>
     /// Gets a specific user's effective permissions.
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
     /// <returns>The user's permissions DTO, or <c>null</c> if the user was not found.</returns>
-    Task<UserPermissionsResponse?> GetUserPermissionsAsync(string userId);
+    Task<UserResponse?> GetUserPermissionsAsync(string userId);
 
     /// <summary>
     /// Gets the detailed group → role → permission resolution chain for a user.
@@ -52,7 +52,7 @@ public interface IUserService
     /// <param name="userId">The unique identifier of the user.</param>
     /// <param name="roleIds">List of role IDs to assign.</param>
     /// <returns>Updated permissions DTO for the user, or <c>null</c> if the user or any role was not found.</returns>
-    Task<UserPermissionsResponse?> AssignRolesToUserAsync(string userId, List<string> roleIds);
+    Task<UserResponse?> AssignRolesToUserAsync(string userId, List<string> roleIds);
 
     /// <summary>
     /// Removes roles from a user by removing them from the corresponding Azure AD groups.
@@ -60,7 +60,7 @@ public interface IUserService
     /// <param name="userId">The unique identifier of the user.</param>
     /// <param name="roleIds">List of role IDs to remove.</param>
     /// <returns>Updated permissions DTO for the user, or <c>null</c> if the user was not found.</returns>
-    Task<UserPermissionsResponse?> RemoveRolesFromUserAsync(string userId, List<string> roleIds);
+    Task<UserResponse?> RemoveRolesFromUserAsync(string userId, List<string> roleIds);
 
     /// <summary>
     /// Checks if a user has a specific permission.
@@ -68,5 +68,5 @@ public interface IUserService
     /// <param name="userId">The unique identifier of the user.</param>
     /// <param name="permission">The permission to check.</param>
     /// <returns>True if the user has the permission; otherwise, false.</returns>
-    bool HasPermission(UserPermissionsResponse? response, string requiredPermission);
+    bool HasPermission(UserResponse? response, string requiredPermission);
 }

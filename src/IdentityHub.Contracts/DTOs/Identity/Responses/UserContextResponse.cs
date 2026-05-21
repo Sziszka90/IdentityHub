@@ -13,6 +13,6 @@ public class UserContextResponse
     public List<string> Permissions { get; set; } = [];
     public List<string> Groups { get; set; } = [];
     public Dictionary<string, string> Claims { get; set; } = [];
-    public DateTime CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
     public bool IsAuthenticated { get; set; }
 }

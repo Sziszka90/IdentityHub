@@ -5,10 +5,11 @@ using AutoMapper;
 using IdentityHub.Client.Authorization;
 using IdentityHub.Contracts.DTOs.Permissions.Requests;
 using IdentityHub.Contracts.DTOs.Users.Requests;
-using IdentityHub.Contracts.DTOs.Groups.Requests;
+using IdentityHub.Contracts.DTOs.Users.Responses;
 using IdentityHub.Contracts.DTOs.Groups.Responses;
 using IdentityHub.Contracts.DTOs.Roles.Requests;
 using IdentityHub.Contracts.DTOs.Roles.Responses;
+using IdentityHub.Contracts.DTOs.GroupRoleMappings.Requests;
 
 namespace IdentityHub.API.Controllers;
 
@@ -73,7 +74,7 @@ public class AdminController : ControllerBase
             return NotFound(new { message = $"User {userId} not found" });
         }
 
-        return Ok(user);
+        return Ok(_mapper.Map<UserResponse>(user));
     }
 
     /// <summary>
@@ -95,7 +96,8 @@ public class AdminController : ControllerBase
         {
             return BadRequest(new { message = "Failed to create user" });
         }
-        return CreatedAtAction(nameof(GetUserById), new { userId = createdUser.Id }, createdUser);
+
+        return CreatedAtAction(nameof(GetUserById), new { userId = createdUser.Id }, _mapper.Map<UserResponse>(createdUser));
     }
 
     /// <summary>
@@ -124,7 +126,7 @@ public class AdminController : ControllerBase
         };
 
         var updatedUser = await _graphService.UpdateUserAsync(updateUser);
-        return Ok(updatedUser);
+        return Ok(_mapper.Map<UserResponse>(updatedUser));
     }
 
     /// <summary>
@@ -408,7 +410,7 @@ public class AdminController : ControllerBase
     [RequirePermission("groups.create")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> CreateGroupRoleMapping([FromBody] CreateGroupRequest request)
+    public async Task<IActionResult> CreateGroupRoleMapping([FromBody] CreateGroupRoleMappingRequest request)
     {
         if (!ModelState.IsValid)
         {
@@ -420,7 +422,7 @@ public class AdminController : ControllerBase
         }
         if (!Guid.TryParse(request.GroupId, out var groupId))
         {
-            return BadRequest(new { message = $"Invalid role ID: {request.RoleId}" });
+            return BadRequest(new { message = $"Invalid group ID: {request.GroupId}" });
         }
         var groupRoleMapping = await _roleService.CreateGroupMappingAsync(groupId, roleId);
         if (groupRoleMapping is null)
@@ -434,21 +436,30 @@ public class AdminController : ControllerBase
     [RequirePermission("groups.update")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateGroupRoleMapping(string id, [FromBody] UpdateGroupRequest request)
+    public async Task<IActionResult> UpdateGroupRoleMapping(string id, [FromBody] UpdateGroupRoleMappingRequest request)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
-        if (!Guid.TryParse(id, out var groupId))
+
+        if (!Guid.TryParse(id, out var mappingId))
         {
-            return BadRequest(new { message = $"Invalid group ID: {id}" });
+            return BadRequest(new { message = $"Invalid mapping ID: {id}" });
         }
+
         if (!Guid.TryParse(request.RoleId, out var roleId))
         {
             return BadRequest(new { message = $"Invalid role ID: {request.RoleId}" });
         }
-        var groupRoleMapping = await _roleService.UpdateGroupMappingAsync(groupId, roleId);
+
+        if (!Guid.TryParse(request.GroupId, out var groupId))
+        {
+            return BadRequest(new { message = $"Invalid group ID: {request.GroupId}" });
+        }
+
+        var groupRoleMapping = await _roleService.UpdateGroupMappingAsync(mappingId, groupId, roleId);
+
         if (groupRoleMapping is null)
         {
             return NotFound(new { message = $"Group-role mapping {id} not found" });

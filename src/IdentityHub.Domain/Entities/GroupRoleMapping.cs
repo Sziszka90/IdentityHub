@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.Graph.Models;
+
 namespace IdentityHub.Domain.Entities;
 
 /// <summary>
@@ -14,6 +17,12 @@ public class GroupRoleMapping
     /// Azure AD group name or ID (e.g. "IdentityHub-Admins").
     /// </summary>
     public Guid GroupId { get; set; }
+
+    /// <summary>
+    /// The group where the role is mapped (populated from Graph, not persisted in the database).
+    /// </summary>
+    [NotMapped]
+    public Group? Group { get; set; }
 
     /// <summary>
     /// Foreign key to the mapped role.

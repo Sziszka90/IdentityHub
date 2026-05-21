@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using IdentityHub.Contracts.DTOs.Groups.Requests;
+using IdentityHub.Contracts.DTOs.GroupRoleMappings.Requests;
 using IdentityHub.Domain.Entities;
 using IdentityHub.Infrastructure.Data;
 using IdentityHub.IntegrationTests.Infrastructure;
@@ -106,9 +106,9 @@ public class AdminGroupMappingsEndpointTests : IClassFixture<CustomWebApplicatio
         db.Roles.Add(role);
         await db.SaveChangesAsync();
 
-        var request = new CreateGroupRequest
+        var request = new CreateGroupRoleMappingRequest
         {
-            GroupName = Guid.NewGuid().ToString(),
+            GroupId = Guid.NewGuid().ToString(),
             RoleId = role.Id.ToString()
         };
 
@@ -120,7 +120,7 @@ public class AdminGroupMappingsEndpointTests : IClassFixture<CustomWebApplicatio
     [Fact]
     public async Task CreateGroupRoleMapping_ReturnsBadRequest_WhenRoleIdIsInvalidGuid()
     {
-        var request = new CreateGroupRequest { GroupName = "SomeGroup", RoleId = "not-a-guid" };
+        var request = new CreateGroupRoleMappingRequest { GroupId = "SomeGroup", RoleId = "not-a-guid" };
 
         var response = await _client.PostAsJsonAsync("/api/admin/group-role-mappings", request);
 
