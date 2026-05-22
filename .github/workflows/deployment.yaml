@@ -19,6 +19,7 @@ on:
         default: "latest"
 
 permissions:
+  id-token: write
   contents: read
   packages: write
 
@@ -149,7 +150,7 @@ jobs:
     environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'production' }}
     steps:
       - name: Azure login
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
