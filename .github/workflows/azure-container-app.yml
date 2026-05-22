@@ -1,0 +1,193 @@
+name: Build and Deploy to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "production"
+      backend_tag:
+        description: "Backend Docker image tag"
+        required: false
+        default: "latest"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOTNET_VERSION: 8.0.x
+  BUILD_CONFIGURATION: Release
+  SOLUTION_FILE: IdentityHub.sln
+  IMAGE_NAME: identityhub-api
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Run code quality checks
+        run: bash ./scripts/lint.sh
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [code-quality]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_FILE }}
+
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION_FILE }} --no-restore --configuration ${{ env.BUILD_CONFIGURATION }}
+
+      - name: Run unit tests
+        run: dotnet test ./tests/IdentityHub.UnitTests/IdentityHub.UnitTests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-build
+
+      - name: Run integration tests
+        run: dotnet test ./tests/IdentityHub.IntegrationTests/IdentityHub.IntegrationTests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-build
+
+  pack-client:
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore src/IdentityHub.Client/IdentityHub.Client.csproj
+
+      - name: Pack IdentityHub.Client
+        shell: bash
+        run: |
+          PACKAGE_VERSION="1.0.0-ci.${{ github.run_number }}"
+
+          dotnet pack src/IdentityHub.Client/IdentityHub.Client.csproj \
+            --configuration ${{ env.BUILD_CONFIGURATION }} \
+            --no-restore \
+            --output ./artifacts/nuget \
+            /p:PackageVersion="$PACKAGE_VERSION"
+
+      - name: Upload NuGet package
+        uses: actions/upload-artifact@v4
+        with:
+          name: identityhub-client-nuget
+          path: artifacts/nuget/*.nupkg
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: [test, pack-client]
+    if: github.event_name != 'pull_request'
+    outputs:
+      backend_tag: ${{ steps.vars.outputs.backend_tag }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BACKEND_TAG="${{ github.event.inputs.backend_tag }}"
+          else
+            BACKEND_TAG="${{ github.sha }}"
+          fi
+
+          echo "backend_tag=${BACKEND_TAG:-latest}" >> "$GITHUB_OUTPUT"
+          echo "Using backend tag: ${BACKEND_TAG:-latest}"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.TOKEN }}
+
+      # Container Apps needs the app to listen on the same port exposed by the container.
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.backend_tag }} \
+            .
+
+      # Best-practice smoke check: start the image locally and verify the health endpoint responds before pushing.
+      - name: Smoke test container startup
+        shell: bash
+        run: |
+          docker run -d --name identityhub-api-smoke -p 8080:8080 ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.backend_tag }}
+
+          code=""
+          for i in $(seq 1 15); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health || true)
+            if [ "$code" = "200" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$code" != "200" ]; then
+            docker logs identityhub-api-smoke || true
+            docker rm -f identityhub-api-smoke || true
+            exit 1
+          fi
+
+          docker rm -f identityhub-api-smoke
+
+      - name: Tag and push backend image
+        shell: bash
+        run: |
+          local_tag="${{ steps.vars.outputs.backend_tag }}"
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          remote_tag="ghcr.io/${owner}/${{ env.IMAGE_NAME }}:${local_tag}"
+
+          docker tag ${{ env.IMAGE_NAME }}:${local_tag} "$remote_tag"
+          docker push "$remote_tag"
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: github.event_name != 'pull_request'
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'production' }}
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Azure Container Apps extension
+        run: az extension add --name containerapp --upgrade
+
+      - name: Deploy to Azure Container Apps
+        shell: bash
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          image="ghcr.io/${owner}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.backend_tag }}"
+
+          az containerapp update \
+            --name "IdentityHub" \
+            --resource-group "projects" \
+            --image "$image"

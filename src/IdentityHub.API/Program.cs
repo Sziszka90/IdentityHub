@@ -42,8 +42,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseGlobalExceptionHandler();
 
-app.UseHttpsRedirection();
-
 app.UseCors("AllowAll");
 
 
@@ -52,6 +50,8 @@ app.UseAuthentication();
 app.UseTenantIsolation();
 app.UseMiddleware<TenantContextValidationMiddleware>();
 app.UseAuthorization();
+
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
 
 app.MapControllers();
 

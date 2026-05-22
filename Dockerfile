@@ -3,9 +3,13 @@ WORKDIR /src
 
 COPY IdentityHub.sln .
 COPY src/IdentityHub.API/IdentityHub.API.csproj src/IdentityHub.API/
-COPY src/IdentityHub.Core/IdentityHub.Core.csproj src/IdentityHub.Core/
+COPY src/IdentityHub.Contracts/IdentityHub.Contracts.csproj src/IdentityHub.Contracts/
+COPY src/IdentityHub.Domain/IdentityHub.Domain.csproj src/IdentityHub.Domain/
+COPY src/IdentityHub.Application/IdentityHub.Application.csproj src/IdentityHub.Application/
+COPY src/IdentityHub.Infrastructure/IdentityHub.Infrastructure.csproj src/IdentityHub.Infrastructure/
+COPY src/IdentityHub.Client/IdentityHub.Client.csproj src/IdentityHub.Client/
 
-RUN dotnet restore
+RUN dotnet restore src/IdentityHub.API/IdentityHub.API.csproj
 
 COPY . .
 WORKDIR /src/src/IdentityHub.API
