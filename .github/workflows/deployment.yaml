@@ -9,10 +9,6 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      environment:
-        description: "Target environment"
-        required: true
-        default: "production"
       backend_tag:
         description: "Backend Docker image tag"
         required: false
