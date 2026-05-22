@@ -23,7 +23,7 @@ env:
   DOTNET_VERSION: 8.0.x
   BUILD_CONFIGURATION: Release
   SOLUTION_FILE: IdentityHub.sln
-  IMAGE_NAME: identityhub-api
+  IMAGE_NAME: identity-hub-service
 
 jobs:
   code-quality:
@@ -89,7 +89,7 @@ jobs:
       - name: Upload NuGet package
         uses: actions/upload-artifact@v7
         with:
-          name: identityhub-client-nuget
+          name: identity-hub-client
           path: artifacts/nuget/*.nupkg
 
   build-and-push:
