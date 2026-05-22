@@ -1,5 +1,5 @@
-using IdentityHub.Domain.Models;
 using System.Security.Claims;
+using IdentityHub.Domain.Models;
 
 namespace IdentityHub.Application.Interfaces;
 

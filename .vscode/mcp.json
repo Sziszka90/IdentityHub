@@ -1,0 +1,29 @@
+{
+  "servers": {
+    "angular": {
+      "command": "ng",
+      "args": ["mcp"]
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "dotenv-cli",
+        "-e",
+        ".env",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ]
+    },
+    "awesome-copilot": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "awesome-copilot-mcp",
+        "start"
+      ]
+    }
+  }
+}

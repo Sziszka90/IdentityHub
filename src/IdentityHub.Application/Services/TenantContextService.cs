@@ -1,6 +1,7 @@
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Domain.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 
 namespace IdentityHub.Application.Services;
 
@@ -10,10 +11,14 @@ namespace IdentityHub.Application.Services;
 public class TenantContextService : ITenantContextService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly TenantConfigurationOptions _tenantOptions;
 
-    public TenantContextService(IHttpContextAccessor httpContextAccessor)
+    public TenantContextService(
+        IHttpContextAccessor httpContextAccessor,
+        IOptions<TenantConfigurationOptions> tenantOptions)
     {
         _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
+        _tenantOptions = tenantOptions?.Value ?? throw new ArgumentNullException(nameof(tenantOptions));
     }
 
     /// <summary>
@@ -29,7 +34,7 @@ public class TenantContextService : ITenantContextService
         }
 
 
-        if (httpContext.Request.Headers.TryGetValue("X-Tenant-Id", out var tenantId))
+        if (httpContext.Request.Headers.TryGetValue(_tenantOptions.HeaderName, out var tenantId))
         {
             // Try to get user id from claims
             string? userId = httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

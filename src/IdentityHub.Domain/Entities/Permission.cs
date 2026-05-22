@@ -3,7 +3,7 @@ namespace IdentityHub.Domain.Entities;
 /// <summary>
 /// Represents a permission string (e.g., "users.*", "tickets.view.all").
 /// </summary>
-public class Permission
+public class Permission : ITenantOwnedEntity
 {
     /// <summary>
     /// Unique ID
@@ -14,6 +14,11 @@ public class Permission
     /// Permission name/pattern (e.g. "users.*", "tickets.create").
     /// </summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tenant that owns this permission.
+    /// </summary>
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>
     /// Optional description of the permission.

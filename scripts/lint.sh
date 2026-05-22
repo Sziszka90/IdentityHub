@@ -7,7 +7,7 @@ set -e
 
 SOLUTION_PATH="IdentityHub.sln"
 
-echo "🔍 Running code analysis for FinanceApp Backend..."
+echo "🔍 Running code analysis for IdentityHub Backend..."
 
 # Check if solution exists
 if [[ ! -f "$SOLUTION_PATH" ]]; then

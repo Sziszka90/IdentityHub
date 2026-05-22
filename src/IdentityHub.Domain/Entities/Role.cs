@@ -3,7 +3,7 @@ namespace IdentityHub.Domain.Entities;
 /// <summary>
 /// Represents an application role (e.g., Admin, SupportAgent, Developer).
 /// </summary>
-public class Role
+public class Role : ITenantOwnedEntity
 {
     /// <summary>
     /// Unique ID
@@ -14,6 +14,11 @@ public class Role
     /// Unique role name (e.g. "Admin", "SupportAgent").
     /// </summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tenant that owns this role.
+    /// </summary>
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>
     /// Optional description of the role.

@@ -1,8 +1,10 @@
 using IdentityHub.Domain.Entities;
+using IdentityHub.Domain.Models;
 using IdentityHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace IdentityHub.Infrastructure.Seeding;
 
@@ -17,6 +19,13 @@ public static class AuthorizationDbSeeder
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityHubDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<IdentityHubDbContext>>();
+        var tenantOptions = scope.ServiceProvider.GetRequiredService<IOptions<TenantConfigurationOptions>>().Value;
+        var seedTenantId = tenantOptions.SeedTenantId;
+
+        if (string.IsNullOrWhiteSpace(seedTenantId))
+        {
+            throw new InvalidOperationException($"{TenantConfigurationOptions.SectionName}:SeedTenantId is required for startup seeding.");
+        }
 
         // Apply pending migrations
         await db.Database.MigrateAsync();
@@ -65,7 +74,7 @@ public static class AuthorizationDbSeeder
         var permissions = new Dictionary<string, Permission>();
         foreach (var permName in permissionNames)
         {
-            var permission = new Permission { Name = permName };
+            var permission = new Permission { Name = permName, TenantId = seedTenantId };
             db.Permissions.Add(permission);
             permissions[permName] = permission;
         }
@@ -76,7 +85,8 @@ public static class AuthorizationDbSeeder
         var adminRole = new Role
         {
             Name = "Admin",
-            Description = "Administrator role with full system access"
+            Description = "Administrator role with full system access",
+            TenantId = seedTenantId
         };
         db.Roles.Add(adminRole);
         await db.SaveChangesAsync();
@@ -98,7 +108,8 @@ public static class AuthorizationDbSeeder
         db.GroupRoleMappings.Add(new GroupRoleMapping
         {
             GroupId = new Guid("c4de85d6-0780-4280-aa9a-3a30f0a18878"),
-            RoleId = adminRole.Id
+            RoleId = adminRole.Id,
+            TenantId = seedTenantId
         });
         await db.SaveChangesAsync();
         logger.LogInformation("Created GroupRoleMapping: GroupName=Admin, RoleId={RoleId}", adminRole.Id);

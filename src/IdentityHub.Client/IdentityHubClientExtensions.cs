@@ -1,8 +1,11 @@
-
 using IdentityHub.Client.Authorization;
+using IdentityHub.Client.Caching;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace IdentityHub.Client;
@@ -37,6 +40,37 @@ public static class IdentityHubClientExtensions
 
         services.Configure<IdentityHubClientOptions>(
             configuration.GetSection(IdentityHubClientOptions.SectionName));
+
+        services.TryAddSingleton<IIdentityHubCacheStore>(sp =>
+        {
+            var clientOptions = sp.GetRequiredService<IOptions<IdentityHubClientOptions>>().Value;
+
+            if (clientOptions.CacheProvider == IdentityHubCacheProvider.Distributed)
+            {
+                return new DistributedIdentityHubCacheStore(sp.GetRequiredService<IDistributedCache>());
+            }
+
+            return new MemoryIdentityHubCacheStore(sp.GetRequiredService<IMemoryCache>());
+        });
+
+        if (options.CacheProvider == IdentityHubCacheProvider.Distributed)
+        {
+            if (string.IsNullOrWhiteSpace(options.RedisConnectionString))
+            {
+                throw new InvalidOperationException(
+                    "IdentityHubClient:RedisConnectionString must be set when CacheProvider is Distributed.");
+            }
+
+            services.AddStackExchangeRedisCache(redisOptions =>
+            {
+                redisOptions.Configuration = options.RedisConnectionString;
+                redisOptions.InstanceName = options.RedisInstanceName;
+            });
+        }
+        else
+        {
+            services.AddMemoryCache();
+        }
 
         services.AddSingleton<IdentityHubClient>();
         services.AddSingleton<IIdentityHubClient>(sp => sp.GetRequiredService<IdentityHubClient>());

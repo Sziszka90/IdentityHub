@@ -1,5 +1,5 @@
-using IdentityHub.Contracts.DTOs.Permissions.Responses;
 using IdentityHub.Contracts.DTOs.Identity.Responses;
+using IdentityHub.Contracts.DTOs.Permissions.Responses;
 
 namespace IdentityHub.Client;
 

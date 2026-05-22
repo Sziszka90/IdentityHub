@@ -22,6 +22,7 @@ public class TenantContextValidationMiddleware
         var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
         // Exclude Swagger, static files, and favicon/apple-touch-icon requests from tenant validation
         if (path.StartsWith("/swagger") ||
+            path.StartsWith("/health") ||
             path.StartsWith("/favicon.ico") ||
             path.StartsWith("/apple-touch-icon") ||
             path.StartsWith("/static") ||

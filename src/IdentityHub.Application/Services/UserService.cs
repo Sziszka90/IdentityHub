@@ -1,8 +1,8 @@
 using IdentityHub.Application.Interfaces;
+using IdentityHub.Contracts.DTOs.Permissions.Responses;
+using IdentityHub.Contracts.DTOs.Users.Responses;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
-using IdentityHub.Contracts.DTOs.Users.Responses;
-using IdentityHub.Contracts.DTOs.Permissions.Responses;
 
 namespace IdentityHub.Application.Services;
 

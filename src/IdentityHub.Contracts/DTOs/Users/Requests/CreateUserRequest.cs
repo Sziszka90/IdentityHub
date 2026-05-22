@@ -1,9 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace IdentityHub.Contracts.DTOs.Users.Requests;
 
 /// <summary>
 /// DTO for creating a new user.
 /// </summary>
-using System.ComponentModel.DataAnnotations;
 
 public class CreateUserRequest
 {
@@ -29,7 +30,7 @@ public class CreateUserRequest
     public bool AccountEnabled { get; set; } = true;
 
     public List<string> RoleIds { get; set; } = new();
-    
+
     [StringLength(100)]
     public string? JobTitle { get; set; }
 

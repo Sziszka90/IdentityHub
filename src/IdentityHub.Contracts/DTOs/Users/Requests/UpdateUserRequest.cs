@@ -1,9 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace IdentityHub.Contracts.DTOs.Users.Requests;
 
 /// <summary>
 /// DTO for updating a user.
 /// </summary>
-using System.ComponentModel.DataAnnotations;
 
 public class UpdateUserRequest
 {
@@ -25,5 +26,5 @@ public class UpdateUserRequest
     [StringLength(50)]
     public string? OfficeLocation { get; set; }
 
-    public List<string> RoleIds { get; set;} = [];
+    public List<string> RoleIds { get; set; } = [];
 }

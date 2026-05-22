@@ -1,5 +1,5 @@
-using IdentityHub.Domain.Entities;
 using IdentityHub.Contracts.DTOs.GroupRoleMappings.Responses;
+using IdentityHub.Domain.Entities;
 
 namespace IdentityHub.Application.Interfaces;
 

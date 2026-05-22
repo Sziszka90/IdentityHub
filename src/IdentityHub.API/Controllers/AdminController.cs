@@ -1,15 +1,15 @@
-using IdentityHub.Application.Interfaces;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Graph.Models;
 using AutoMapper;
+using IdentityHub.Application.Interfaces;
 using IdentityHub.Client.Authorization;
-using IdentityHub.Contracts.DTOs.Permissions.Requests;
-using IdentityHub.Contracts.DTOs.Users.Requests;
-using IdentityHub.Contracts.DTOs.Users.Responses;
+using IdentityHub.Contracts.DTOs.GroupRoleMappings.Requests;
 using IdentityHub.Contracts.DTOs.Groups.Responses;
+using IdentityHub.Contracts.DTOs.Permissions.Requests;
 using IdentityHub.Contracts.DTOs.Roles.Requests;
 using IdentityHub.Contracts.DTOs.Roles.Responses;
-using IdentityHub.Contracts.DTOs.GroupRoleMappings.Requests;
+using IdentityHub.Contracts.DTOs.Users.Requests;
+using IdentityHub.Contracts.DTOs.Users.Responses;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Graph.Models;
 
 namespace IdentityHub.API.Controllers;
 

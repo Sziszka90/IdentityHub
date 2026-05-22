@@ -1,6 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using IdentityHub.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 
 namespace IdentityHub.API.Authorization
 {

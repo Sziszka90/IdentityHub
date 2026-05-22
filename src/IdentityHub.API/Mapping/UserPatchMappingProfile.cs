@@ -1,6 +1,6 @@
 using AutoMapper;
-using Microsoft.Graph.Models;
 using IdentityHub.Contracts.DTOs.Users.Requests;
+using Microsoft.Graph.Models;
 
 namespace IdentityHub.API.Mapping;
 

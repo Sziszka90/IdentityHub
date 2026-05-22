@@ -33,7 +33,14 @@ builder.Services.AddCorsPolicy();
 
 var app = builder.Build();
 
-await AuthorizationDbSeeder.SeedFromConfigAsync(app.Services);
+var tenantConfiguration = app.Configuration
+    .GetSection(IdentityHub.Domain.Models.TenantConfigurationOptions.SectionName)
+    .Get<IdentityHub.Domain.Models.TenantConfigurationOptions>();
+
+if (tenantConfiguration?.EnableStartupSeeding != false)
+{
+    await AuthorizationDbSeeder.SeedFromConfigAsync(app.Services);
+}
 
 if (app.Environment.IsDevelopment())
 {

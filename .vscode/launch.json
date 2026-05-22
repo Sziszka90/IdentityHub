@@ -1,0 +1,30 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch IdentityHub.API",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build IdentityHub.API",
+            "program": "${workspaceFolder}/src/IdentityHub.API/bin/Debug/net8.0/IdentityHub.API.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/IdentityHub.API",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "Launch IdentityHub.ExampleProject",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build IdentityHub.ExampleProject",
+            "program": "${workspaceFolder}/src/IdentityHub.ExampleProject/bin/Debug/net8.0/IdentityHub.ExampleProject.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/IdentityHub.ExampleProject",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        }
+    ]
+}

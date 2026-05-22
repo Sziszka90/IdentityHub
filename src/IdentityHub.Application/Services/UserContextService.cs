@@ -1,6 +1,6 @@
 using System.Security.Claims;
-using IdentityHub.Domain.Models;
 using IdentityHub.Application.Interfaces;
+using IdentityHub.Domain.Models;
 using Microsoft.Extensions.Logging;
 
 namespace IdentityHub.Application.Services;

@@ -40,6 +40,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
                 ["EntraId:ClientId"] = "00000000-0000-0000-0000-000000000000",
                 ["EntraId:Domain"] = "test.onmicrosoft.com",
                 ["EntraId:Audience"] = "api://00000000-0000-0000-0000-000000000000",
+                ["TenantConfiguration:HeaderName"] = "X-Tenant-Id",
+                ["TenantConfiguration:EnableStartupSeeding"] = "false",
+                ["TenantConfiguration:SeedTenantId"] = TestAuthHandler.TestTenantId,
+                ["TenantConfiguration:AllowedTenantIds:0"] = TestAuthHandler.TestTenantId,
                 // Dummy connection string – replaced below with the SQLite connection
                 ["ConnectionStrings:AuthorizationDb"] = "DataSource=:memory:",
             });
@@ -51,8 +55,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             // Remove the SQL Server DbContext registered in Program.cs
             services.RemoveAll<DbContextOptions<IdentityHubDbContext>>();
             // Register SQLite using the shared in-memory connection
-            services.AddDbContext<IdentityHubDbContext>(options =>
-                options.UseSqlite(_connection));
+            services.AddDbContext<IdentityHubDbContext>((serviceProvider, options) =>
+                options
+                    .UseSqlite(_connection)
+                    .AddInterceptors(serviceProvider.GetRequiredService<TenantSaveChangesInterceptor>()));
 
             // ── Graph Service ─────────────────────────────────────────────────
             // Replace the real Graph service (requires Azure credentials) with fake

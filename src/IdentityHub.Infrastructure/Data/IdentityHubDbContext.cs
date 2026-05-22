@@ -1,3 +1,4 @@
+using IdentityHub.Application.Interfaces;
 using IdentityHub.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,10 +9,22 @@ namespace IdentityHub.Infrastructure.Data;
 /// </summary>
 public class IdentityHubDbContext : DbContext
 {
+    private readonly ITenantContextService? _tenantContextService;
+
     public IdentityHubDbContext(DbContextOptions<IdentityHubDbContext> options)
-        : base(options)
+        : this(options, null)
     {
     }
+
+    public IdentityHubDbContext(
+        DbContextOptions<IdentityHubDbContext> options,
+        ITenantContextService? tenantContextService)
+        : base(options)
+    {
+        _tenantContextService = tenantContextService;
+    }
+
+    private string? CurrentTenantId => _tenantContextService?.GetTenantContext().TenantId;
 
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
@@ -28,8 +41,10 @@ public class IdentityHubDbContext : DbContext
             e.ToTable("Roles");
             e.HasKey(r => r.Id);
             e.Property(r => r.Name).HasMaxLength(100).IsRequired();
-            e.HasIndex(r => r.Name).IsUnique();
+            e.Property(r => r.TenantId).HasMaxLength(100).IsRequired();
+            e.HasIndex(r => new { r.TenantId, r.Name }).IsUnique();
             e.Property(r => r.Description).HasMaxLength(500);
+            e.HasQueryFilter(r => string.IsNullOrEmpty(CurrentTenantId) || r.TenantId == CurrentTenantId);
         });
 
         // ── Permission ──
@@ -38,8 +53,10 @@ public class IdentityHubDbContext : DbContext
             e.ToTable("Permissions");
             e.HasKey(p => p.Id);
             e.Property(p => p.Name).HasMaxLength(200).IsRequired();
-            e.HasIndex(p => p.Name).IsUnique();
+            e.Property(p => p.TenantId).HasMaxLength(100).IsRequired();
+            e.HasIndex(p => new { p.TenantId, p.Name }).IsUnique();
             e.Property(p => p.Description).HasMaxLength(500);
+            e.HasQueryFilter(p => string.IsNullOrEmpty(CurrentTenantId) || p.TenantId == CurrentTenantId);
         });
 
         // ── RolePermission (many-to-many) ──
@@ -47,6 +64,8 @@ public class IdentityHubDbContext : DbContext
         {
             e.ToTable("RolePermissions");
             e.HasKey(rp => new { rp.RoleId, rp.PermissionId });
+            e.HasQueryFilter(rp => string.IsNullOrEmpty(CurrentTenantId)
+                || (rp.Role.TenantId == CurrentTenantId && rp.Permission.TenantId == CurrentTenantId));
 
             e.HasOne(rp => rp.Role)
                 .WithMany(r => r.RolePermissions)
@@ -65,7 +84,9 @@ public class IdentityHubDbContext : DbContext
             e.ToTable("GroupRoleMappings");
             e.HasKey(g => g.Id);
             e.Property(g => g.GroupId).IsRequired();
-            e.HasIndex(g => g.GroupId).IsUnique();
+            e.Property(g => g.TenantId).HasMaxLength(100).IsRequired();
+            e.HasIndex(g => new { g.TenantId, g.GroupId }).IsUnique();
+            e.HasQueryFilter(g => string.IsNullOrEmpty(CurrentTenantId) || g.TenantId == CurrentTenantId);
 
             e.HasOne(g => g.Role)
                 .WithMany(r => r.GroupRoleMappings)

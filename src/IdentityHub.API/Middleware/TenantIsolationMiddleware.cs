@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IdentityHub.Domain.Models;
+using Microsoft.Extensions.Options;
 
 namespace IdentityHub.API.Middleware;
 
@@ -10,11 +11,16 @@ public class TenantIsolationMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<TenantIsolationMiddleware> _logger;
+    private readonly TenantConfigurationOptions _tenantOptions;
 
-    public TenantIsolationMiddleware(RequestDelegate next, ILogger<TenantIsolationMiddleware> logger)
+    public TenantIsolationMiddleware(
+        RequestDelegate next,
+        ILogger<TenantIsolationMiddleware> logger,
+        IOptions<TenantConfigurationOptions> tenantOptions)
     {
         _next = next;
         _logger = logger;
+        _tenantOptions = tenantOptions.Value;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -37,6 +43,15 @@ public class TenantIsolationMiddleware
             _logger.LogWarning("Missing tenant ID in JWT token for user {UserId}", userId);
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(new { error = "Invalid tenant context" });
+            return;
+        }
+
+        if (_tenantOptions.AllowedTenantIds.Count > 0
+            && !_tenantOptions.AllowedTenantIds.Contains(tenantId, StringComparer.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Rejected request for disallowed tenant {TenantId}", tenantId);
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsJsonAsync(new { error = "Tenant is not allowed" });
             return;
         }
 

@@ -1,6 +1,7 @@
 using IdentityHub.Application.Services;
-using Microsoft.AspNetCore.Http;
 using IdentityHub.Domain.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -9,8 +10,9 @@ namespace IdentityHub.UnitTests.Services;
 public class TenantContextServiceTests
 {
     private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock = new();
+    private readonly IOptions<TenantConfigurationOptions> _tenantOptions = Options.Create(new TenantConfigurationOptions());
 
-    private TenantContextService CreateService() => new(_httpContextAccessorMock.Object);
+    private TenantContextService CreateService() => new(_httpContextAccessorMock.Object, _tenantOptions);
 
     // -------------------------------------------------------------------------
     // GetTenantContext

@@ -1,9 +1,9 @@
+using IdentityHub.API.Authorization;
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Application.Services;
 using IdentityHub.Domain.Models;
 using IdentityHub.Infrastructure.Data;
 using IdentityHub.Infrastructure.Repositories;
-using IdentityHub.API.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +53,8 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<RolePermissionOptions>(
             configuration.GetSection(RolePermissionOptions.SectionName));
+        services.Configure<TenantConfigurationOptions>(
+            configuration.GetSection(TenantConfigurationOptions.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddScoped<IAuthorizationHandler, RequirePermissionHandler>();
@@ -61,6 +63,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IUserContextService, UserContextService>();
         services.AddScoped<ITenantContextService, TenantContextService>();
+        services.AddScoped<TenantSaveChangesInterceptor>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IGraphService, GraphService>();
@@ -78,8 +81,10 @@ public static class ServiceCollectionExtensions
         var connectionString = configuration.GetConnectionString("AuthorizationDb")
             ?? throw new InvalidOperationException("ConnectionStrings:AuthorizationDb is not configured");
 
-        services.AddDbContext<IdentityHubDbContext>(options =>
-            options.UseSqlServer(connectionString));
+        services.AddDbContext<IdentityHubDbContext>((serviceProvider, options) =>
+            options
+                .UseSqlServer(connectionString)
+                .AddInterceptors(serviceProvider.GetRequiredService<TenantSaveChangesInterceptor>()));
 
         services.AddScoped<IRolesRepository, RolesRepository>();
         services.AddScoped<IPermissionsRepository, PermissionsRepository>();

@@ -49,7 +49,7 @@ public class PermissionsRepository : IPermissionsRepository
         return true;
     }
 
-   public async Task<List<string>> GetPermissionsForRoleAsync(string roleName, CancellationToken ct = default)
+    public async Task<List<string>> GetPermissionsForRoleAsync(string roleName, CancellationToken ct = default)
     {
         var role = await _db.Roles
             .Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)

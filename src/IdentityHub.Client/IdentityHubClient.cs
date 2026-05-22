@@ -1,13 +1,14 @@
-
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using IdentityHub.Client.Caching;
+using IdentityHub.Contracts.DTOs.Admin;
+using IdentityHub.Contracts.DTOs.Identity.Responses;
+using IdentityHub.Contracts.DTOs.Permissions.Responses;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using IdentityHub.Contracts.DTOs.Permissions.Responses;
-using IdentityHub.Contracts.DTOs.Identity.Responses;
-using IdentityHub.Contracts.DTOs.Admin;
 
 namespace IdentityHub.Client;
 
@@ -15,8 +16,7 @@ namespace IdentityHub.Client;
 /// Typed HTTP client that calls the central IdentityHub.API to retrieve authorization config
 /// and perform per-user authorization and identity lookups.
 /// Registered in DI via <see cref="IdentityHubClientExtensions.AddIdentityHubClient"/>.
-/// The role-permissions and group-mapping snapshots are cached independently for
-/// <see cref="IdentityHubClientOptions.CacheSeconds"/> seconds.
+/// Cached responses are stored through the configured cache backend.
 /// </summary>
 public class IdentityHubClient : HttpClient, IIdentityHubClient
 {
@@ -27,20 +27,17 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
     };
 
     private readonly IdentityHubClientOptions _options;
+    private readonly IIdentityHubCacheStore _cacheStore;
     private readonly ILogger<IdentityHubClient> _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    private Dictionary<string, List<string>>? _rolePermissions;
-    private DateTimeOffset _rolePermissionsFetchedAt = DateTimeOffset.MinValue;
-
-    private Dictionary<string, string>? _groupMapping;
-    private DateTimeOffset _groupMappingFetchedAt = DateTimeOffset.MinValue;
-
     public IdentityHubClient(
         IOptions<IdentityHubClientOptions> options,
+        IIdentityHubCacheStore cacheStore,
         ILogger<IdentityHubClient> logger)
     {
         _options = options.Value;
+        _cacheStore = cacheStore;
         _logger = logger;
 
         BaseAddress = new Uri(_options.BaseUrl.TrimEnd('/') + "/");
@@ -54,16 +51,26 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
     // Authorization config (cached, M2M)
     // -------------------------------------------------------------------------
 
+    private string RolePermissionsCacheKey => $"{_options.CacheKeyPrefix}:role-permissions";
+
+    private string GroupMappingCacheKey => $"{_options.CacheKeyPrefix}:group-role-mappings";
+
     /// <inheritdoc/>
     public async Task<Dictionary<string, List<string>>> GetRolePermissionsAsync(CancellationToken ct = default)
     {
+        var cached = await _cacheStore.GetAsync<Dictionary<string, List<string>>>(RolePermissionsCacheKey, ct);
+        if (cached is not null)
+        {
+            return cached;
+        }
+
         await _lock.WaitAsync(ct);
         try
         {
-            if (_rolePermissions is not null &&
-                DateTimeOffset.UtcNow - _rolePermissionsFetchedAt < TimeSpan.FromSeconds(_options.CacheSeconds))
+            cached = await _cacheStore.GetAsync<Dictionary<string, List<string>>>(RolePermissionsCacheKey, ct);
+            if (cached is not null)
             {
-                return _rolePermissions;
+                return cached;
             }
 
             _logger.LogDebug("Fetching role-permissions from IdentityHub API");
@@ -76,7 +83,7 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
             var envelope = JsonSerializer.Deserialize<RolesEnvelopeDto>(body, _json)
                 ?? throw new InvalidOperationException("Empty response from /api/admin/roles");
 
-            _rolePermissions = envelope.Roles
+            var rolePermissions = envelope.Roles
                 .ToDictionary(
                     r => r.Name,
                     r => r.RolePermissions
@@ -84,8 +91,13 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
                             .Where(n => !string.IsNullOrWhiteSpace(n))
                             .ToList());
 
-            _rolePermissionsFetchedAt = DateTimeOffset.UtcNow;
-            return _rolePermissions;
+            await _cacheStore.SetAsync(
+                RolePermissionsCacheKey,
+                rolePermissions,
+                TimeSpan.FromSeconds(_options.CacheSeconds),
+                ct);
+
+            return rolePermissions;
         }
         finally
         {
@@ -96,13 +108,19 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
     /// <inheritdoc/>
     public async Task<Dictionary<string, string>> GetGroupToRoleMappingAsync(CancellationToken ct = default)
     {
+        var cached = await _cacheStore.GetAsync<Dictionary<string, string>>(GroupMappingCacheKey, ct);
+        if (cached is not null)
+        {
+            return cached;
+        }
+
         await _lock.WaitAsync(ct);
         try
         {
-            if (_groupMapping is not null &&
-                DateTimeOffset.UtcNow - _groupMappingFetchedAt < TimeSpan.FromSeconds(_options.CacheSeconds))
+            cached = await _cacheStore.GetAsync<Dictionary<string, string>>(GroupMappingCacheKey, ct);
+            if (cached is not null)
             {
-                return _groupMapping;
+                return cached;
             }
 
             _logger.LogDebug("Fetching group-role mapping from IdentityHub API");
@@ -115,12 +133,17 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
             var envelope = JsonSerializer.Deserialize<GroupMappingsEnvelopeDto>(body, _json)
                 ?? throw new InvalidOperationException("Empty response from /api/admin/group-role-mappings");
 
-            _groupMapping = envelope.GroupRoleMappings
+            var groupMapping = envelope.GroupRoleMappings
                 .Where(m => !string.IsNullOrWhiteSpace(m.GroupName) && m.Role is not null)
                 .ToDictionary(m => m.GroupName, m => m.Role!.Name);
 
-            _groupMappingFetchedAt = DateTimeOffset.UtcNow;
-            return _groupMapping;
+            await _cacheStore.SetAsync(
+                GroupMappingCacheKey,
+                groupMapping,
+                TimeSpan.FromSeconds(_options.CacheSeconds),
+                ct);
+
+            return groupMapping;
         }
         finally
         {
@@ -138,6 +161,13 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
         string bearerToken,
         CancellationToken ct = default)
     {
+        var cacheKey = BuildPermissionCheckCacheKey(permission, bearerToken);
+        var cached = await _cacheStore.GetAsync<PermissionCheckResponse>(cacheKey, ct);
+        if (cached is not null)
+        {
+            return cached;
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Post, "api/authorization/check");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
         request.Content = new StringContent(
@@ -149,8 +179,16 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
         response.EnsureSuccessStatusCode();
 
         var body = await response.Content.ReadAsStringAsync(ct);
-        return JsonSerializer.Deserialize<PermissionCheckResponse>(body, _json)
+        var permissionCheck = JsonSerializer.Deserialize<PermissionCheckResponse>(body, _json)
             ?? throw new InvalidOperationException("Empty response from /api/authorization/check");
+
+        await _cacheStore.SetAsync(
+            cacheKey,
+            permissionCheck,
+            TimeSpan.FromSeconds(_options.PermissionCheckCacheSeconds),
+            ct);
+
+        return permissionCheck;
     }
 
     // -------------------------------------------------------------------------
@@ -183,5 +221,11 @@ public class IdentityHubClient : HttpClient, IIdentityHubClient
         var body = await response.Content.ReadAsStringAsync(ct);
         return JsonSerializer.Deserialize<AuthStatusResponse>(body, _json)
             ?? throw new InvalidOperationException("Empty response from /api/identity/status");
+    }
+
+    private string BuildPermissionCheckCacheKey(string permission, string bearerToken)
+    {
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(bearerToken)));
+        return $"{_options.CacheKeyPrefix}:permission:{permission}:{tokenHash}";
     }
 }
