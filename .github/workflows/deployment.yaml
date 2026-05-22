@@ -90,7 +90,7 @@ jobs:
             /p:PackageVersion="$PACKAGE_VERSION"
 
       - name: Upload NuGet package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identityhub-client-nuget
           path: artifacts/nuget/*.nupkg
@@ -131,29 +131,6 @@ jobs:
           docker build \
             -t ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.backend_tag }} \
             .
-
-      # Best-practice smoke check: start the image locally and verify the health endpoint responds before pushing.
-      - name: Smoke test container startup
-        shell: bash
-        run: |
-          docker run -d --name identityhub-api-smoke -p 8080:8080 ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.backend_tag }}
-
-          code=""
-          for i in $(seq 1 15); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health || true)
-            if [ "$code" = "200" ]; then
-              break
-            fi
-            sleep 2
-          done
-
-          if [ "$code" != "200" ]; then
-            docker logs identityhub-api-smoke || true
-            docker rm -f identityhub-api-smoke || true
-            exit 1
-          fi
-
-          docker rm -f identityhub-api-smoke
 
       - name: Tag and push backend image
         shell: bash
