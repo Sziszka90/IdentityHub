@@ -136,8 +136,16 @@ jobs:
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           remote_tag="ghcr.io/${owner}/${{ env.IMAGE_NAME }}:${local_tag}"
 
+          # Always push the versioned tag
           docker tag ${{ env.IMAGE_NAME }}:${local_tag} "$remote_tag"
           docker push "$remote_tag"
+
+          # If this is the latest build, also tag and push as latest
+          if [ "$local_tag" = "latest" ] || [ "$local_tag" = "main" ]; then
+            latest_tag="ghcr.io/${owner}/${{ env.IMAGE_NAME }}:latest"
+            docker tag ${{ env.IMAGE_NAME }}:${local_tag} "$latest_tag"
+            docker push "$latest_tag"
+          fi
 
   deploy:
     runs-on: ubuntu-latest
