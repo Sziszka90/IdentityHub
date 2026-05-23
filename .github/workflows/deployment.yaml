@@ -171,6 +171,6 @@ jobs:
           image="ghcr.io/${owner}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.backend_tag }}"
 
           az containerapp update \
-            --name "IdentityHub" \
+            --name "identity-hub" \
             --resource-group "projects" \
             --image "$image"
