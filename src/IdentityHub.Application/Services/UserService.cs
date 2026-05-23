@@ -15,6 +15,7 @@ public class UserService : IUserService
     private readonly IPermissionService _permissionService;
     private readonly IGraphService _graphService;
     private readonly IRoleService _roleService;
+    private readonly IUserTenantMappingsRepository _userTenantMappingsRepository;
     private readonly ILogger<UserService> _logger;
 
 
@@ -23,12 +24,14 @@ public class UserService : IUserService
         IPermissionService permissionService,
         IGraphService graphService,
         IRoleService roleService,
+        IUserTenantMappingsRepository userTenantMappingsRepository,
         ILogger<UserService> logger)
     {
         _tenantContextService = tenantContextService ?? throw new ArgumentNullException(nameof(tenantContextService));
         _permissionService = permissionService ?? throw new ArgumentNullException(nameof(permissionService));
         _graphService = graphService ?? throw new ArgumentNullException(nameof(graphService));
         _roleService = roleService ?? throw new ArgumentNullException(nameof(roleService));
+        _userTenantMappingsRepository = userTenantMappingsRepository ?? throw new ArgumentNullException(nameof(userTenantMappingsRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -42,26 +45,33 @@ public class UserService : IUserService
 
         _logger.LogInformation("Getting users for tenant: {TenantId}", tenantContext.TenantId);
 
-        var graphUsers = await _graphService.GetUsersAsync(top: 100);
+        var trackedUsers = await _userTenantMappingsRepository.GetAllUserTenantMappingsAsync();
         var userPermissions = new List<UserResponse>();
 
-        foreach (var graphUser in graphUsers)
+        foreach (var trackedUser in trackedUsers)
         {
-            if (string.IsNullOrEmpty(graphUser.Id))
+            if (string.IsNullOrWhiteSpace(trackedUser.UserId))
             {
                 continue;
             }
 
-            var groupIds = await _graphService.GetUserTransitiveGroupIdsAsync(graphUser.Id);
+            var graphUser = await _graphService.GetUserAsync(trackedUser.UserId);
+            if (graphUser is null)
+            {
+                _logger.LogWarning("Tracked user {UserId} was not found in Graph API", trackedUser.UserId);
+                continue;
+            }
+
+            var groupIds = await _graphService.GetUserTransitiveGroupIdsAsync(trackedUser.UserId);
             var roles = await _permissionService.MapGroupsToRolesAsync(groupIds);
             var permissions = await _permissionService.ResolvePermissionsAsync(roles);
 
             userPermissions.Add(new UserResponse
             {
-                UserId = graphUser.Id,
+                UserId = graphUser.Id ?? trackedUser.UserId,
                 Email = graphUser.Mail ?? "",
                 DisplayName = graphUser.DisplayName ?? "",
-                TenantId = tenantContext.TenantId,
+                TenantId = trackedUser.TenantId,
                 Groups = groupIds,
                 Roles = [.. roles.Select(r => r.Name)],
                 Permissions = permissions
@@ -188,6 +198,8 @@ public class UserService : IUserService
             _logger.LogWarning("Failed to create user {UserPrincipalName}", user.UserPrincipalName);
             return null;
         }
+
+        await _userTenantMappingsRepository.UpsertUserTenantMappingAsync(createdUser.Id!);
 
         var groupIds = new List<Guid>();
         if (roleIds != null && roleIds.Count > 0)

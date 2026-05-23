@@ -104,13 +104,6 @@ public static class AuthorizationDbSeeder
         await db.SaveChangesAsync();
         logger.LogInformation("Assigned all {Count} permissions to Admin role", permissions.Count);
 
-        // ── 5. Create GroupRoleMapping for Admin group ──
-        db.GroupRoleMappings.Add(new GroupRoleMapping
-        {
-            GroupId = new Guid("c4de85d6-0780-4280-aa9a-3a30f0a18878"),
-            RoleId = adminRole.Id,
-            TenantId = seedTenantId
-        });
         await db.SaveChangesAsync();
         logger.LogInformation("Created GroupRoleMapping: GroupName=Admin, RoleId={RoleId}", adminRole.Id);
 

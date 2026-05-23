@@ -18,10 +18,17 @@ public class UserServiceTests
     private readonly Mock<IPermissionService> _permissionServiceMock = new();
     private readonly Mock<IGraphService> _graphServiceMock = new();
     private readonly Mock<IRoleService> _roleServiceMock = new();
+    private readonly Mock<IUserTenantMappingsRepository> _userTenantMappingsRepositoryMock = new();
     private readonly Mock<ILogger<UserService>> _loggerMock = new();
 
     private UserService CreateService() =>
-        new(_tenantContextMock.Object, _permissionServiceMock.Object, _graphServiceMock.Object, _roleServiceMock.Object, _loggerMock.Object);
+        new(
+            _tenantContextMock.Object,
+            _permissionServiceMock.Object,
+            _graphServiceMock.Object,
+            _roleServiceMock.Object,
+            _userTenantMappingsRepositoryMock.Object,
+            _loggerMock.Object);
 
     private void SetupTenantContext(string tenantId = "tenant-123", string userId = "")
     {
@@ -74,7 +81,7 @@ public class UserServiceTests
     public async Task GetUsersWithPermissionsAsync_ReturnsEmpty_WhenNoUsers()
     {
         SetupTenantContext();
-        _graphServiceMock.Setup(g => g.GetUsersAsync(It.IsAny<int>(), It.IsAny<int>())).ReturnsAsync([]);
+        _userTenantMappingsRepositoryMock.Setup(r => r.GetAllUserTenantMappingsAsync(default)).ReturnsAsync([]);
 
         var result = await CreateService().GetUsersWithPermissionsAsync();
 
@@ -85,8 +92,8 @@ public class UserServiceTests
     public async Task GetUsersWithPermissionsAsync_SkipsUsersWithNoId()
     {
         SetupTenantContext();
-        _graphServiceMock.Setup(g => g.GetUsersAsync(It.IsAny<int>(), It.IsAny<int>()))
-            .ReturnsAsync([new User { Id = null, DisplayName = "Ghost" }]);
+        _userTenantMappingsRepositoryMock.Setup(r => r.GetAllUserTenantMappingsAsync(default))
+            .ReturnsAsync([new UserTenantMapping { UserId = "" }]);
 
         var result = await CreateService().GetUsersWithPermissionsAsync();
 
@@ -97,8 +104,9 @@ public class UserServiceTests
     public async Task GetUsersWithPermissionsAsync_ReturnsPermissionsForAllUsers()
     {
         SetupTenantContext();
-        _graphServiceMock.Setup(g => g.GetUsersAsync(It.IsAny<int>(), It.IsAny<int>()))
-            .ReturnsAsync([new User { Id = "u1", Mail = "a@b.com", DisplayName = "Alice" }]);
+        _userTenantMappingsRepositoryMock.Setup(r => r.GetAllUserTenantMappingsAsync(default))
+            .ReturnsAsync([new UserTenantMapping { UserId = "u1", TenantId = "tenant-123" }]);
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync(new User { Id = "u1", Mail = "a@b.com", DisplayName = "Alice" });
         _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1")).ReturnsAsync(["grp-admins"]);
         var adminRole = new Role { Name = "Admin" };
         _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role> { adminRole });
@@ -269,11 +277,14 @@ public class UserServiceTests
     {
         var user = new User { Id = "u-new", UserPrincipalName = "new@c.com" };
         _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>())).ReturnsAsync(user);
+        _userTenantMappingsRepositoryMock.Setup(r => r.UpsertUserTenantMappingAsync("u-new", default))
+            .ReturnsAsync(new UserTenantMapping { UserId = "u-new", TenantId = "tenant-123" });
 
         var result = await CreateService().CreateUserWithRolesAsync(user, []);
 
         Assert.NotNull(result);
         Assert.Equal("u-new", result!.Id);
+        _userTenantMappingsRepositoryMock.Verify(r => r.UpsertUserTenantMappingAsync("u-new", default), Times.Once);
     }
 
     [Fact]
@@ -285,6 +296,8 @@ public class UserServiceTests
         var mapping = new GroupRoleMapping { GroupId = groupId, RoleId = roleId };
 
         _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>())).ReturnsAsync(user);
+        _userTenantMappingsRepositoryMock.Setup(r => r.UpsertUserTenantMappingAsync("u-new", default))
+            .ReturnsAsync(new UserTenantMapping { UserId = "u-new", TenantId = "tenant-123" });
         _roleServiceMock.Setup(r => r.GetGroupMappingByRoleIdAsync(roleId, default)).ReturnsAsync(mapping);
         _graphServiceMock.Setup(g => g.AddUserToGroupsAsync("u-new", It.IsAny<List<string>>())).Returns(Task.CompletedTask);
 

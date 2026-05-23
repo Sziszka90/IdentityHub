@@ -30,6 +30,7 @@ public class IdentityHubDbContext : DbContext
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<GroupRoleMapping> GroupRoleMappings => Set<GroupRoleMapping>();
+    public DbSet<UserTenantMapping> UserTenantMappings => Set<UserTenantMapping>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -92,6 +93,17 @@ public class IdentityHubDbContext : DbContext
                 .WithMany(r => r.GroupRoleMappings)
                 .HasForeignKey(g => g.RoleId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── UserTenantMapping ──
+        modelBuilder.Entity<UserTenantMapping>(e =>
+        {
+            e.ToTable("UserTenantMappings");
+            e.HasKey(u => u.Id);
+            e.Property(u => u.UserId).HasMaxLength(100).IsRequired();
+            e.Property(u => u.TenantId).HasMaxLength(100).IsRequired();
+            e.HasIndex(u => new { u.TenantId, u.UserId }).IsUnique();
+            e.HasQueryFilter(u => string.IsNullOrEmpty(CurrentTenantId) || u.TenantId == CurrentTenantId);
         });
 
     }

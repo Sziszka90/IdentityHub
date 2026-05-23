@@ -88,6 +88,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IRolesRepository, RolesRepository>();
         services.AddScoped<IPermissionsRepository, PermissionsRepository>();
+        services.AddScoped<IUserTenantMappingsRepository, UserTenantMappingsRepository>();
 
         return services;
     }
