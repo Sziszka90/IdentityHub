@@ -153,6 +153,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-push]
     if: github.event_name != 'pull_request'
+    env:
+      AUTHORIZATION_DB_CONNECTION_STRING: ${{ secrets.CONNECTIONSTRINGS__AUTHORIZATIONDB }}
+      ENTRA_CLIENT_SECRET: ${{ secrets.ENTRAID__CLIENTSECRET }}
+      ENTRA_TENANT_ID: ${{ vars.ENTRAID__TENANTID }}
+      ENTRA_CLIENT_ID: ${{ secrets.ENTRAID__CLIENTID }}
+      ENTRA_AUDIENCE: ${{ vars.ENTRAID__AUDIENCE }}
+      TENANT_SEED_ID: ${{ vars.ENTRAID__TENANTID }}
     steps:
       - name: Azure login
         uses: azure/login@v3
@@ -173,4 +180,12 @@ jobs:
           az containerapp update \
             --name "identity-hub" \
             --resource-group "projects" \
-            --image "$image"
+            --image "$image" \
+            --set-env-vars \
+              ConnectionStrings__AuthorizationDb="$AUTHORIZATION_DB_CONNECTION_STRING" \
+              EntraId__ClientSecret="$ENTRA_CLIENT_SECRET" \
+              EntraId__TenantId="$ENTRA_TENANT_ID" \
+              EntraId__ClientId="$ENTRA_CLIENT_ID" \
+              EntraId__Audience="$ENTRA_AUDIENCE" \
+              TenantConfiguration__SeedTenantId="$TENANT_SEED_ID" \
+              TenantConfiguration__AllowedTenantIds__0="$TENANT_SEED_ID"
