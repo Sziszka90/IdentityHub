@@ -111,7 +111,7 @@ jobs:
           else
             SHORT_SHA="${{ github.sha }}"
             SHORT_SHA="${SHORT_SHA:0:6}"
-            BACKEND_TAG="1.0.0-dev${SHORT_SHA}"
+            BACKEND_TAG="1.0.0-dev-${SHORT_SHA}"
           fi
 
           echo "backend_tag=${BACKEND_TAG:-latest}" >> "$GITHUB_OUTPUT"
