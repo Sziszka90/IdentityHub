@@ -3,10 +3,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseLocalIdentityHubClient Condition="'$(UseLocalIdentityHubClient)' == ''">true</UseLocalIdentityHubClient>
-    <IdentityHubClientPackageVersion Condition="'$(IdentityHubClientPackageVersion)' == ''">1.0.0-ci.20</IdentityHubClientPackageVersion>
-    <UseLocalIdentityHubContracts Condition="'$(UseLocalIdentityHubContracts)' == ''">true</UseLocalIdentityHubContracts>
-    <IdentityHubContractsPackageVersion Condition="'$(IdentityHubContractsPackageVersion)' == ''">1.0.0</IdentityHubContractsPackageVersion>
+    <UseLocalIdentityHubClient Condition="'$(UseLocalIdentityHubClient)' == ''">false</UseLocalIdentityHubClient>
+    <IdentityHubClientPackageVersion Condition="'$(IdentityHubClientPackageVersion)' == ''">1.0.0-dev-6e6d7f</IdentityHubClientPackageVersion>
+    <UseLocalIdentityHubContracts Condition="'$(UseLocalIdentityHubContracts)' == ''">false</UseLocalIdentityHubContracts>
+    <IdentityHubContractsPackageVersion Condition="'$(IdentityHubContractsPackageVersion)' == ''">1.0.0-dev-6e6d7f</IdentityHubContractsPackageVersion>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(UseLocalIdentityHubClient)' == 'true'">
