@@ -112,6 +112,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityHubDbContext>();
         await db.Database.EnsureCreatedAsync();
+
+        db.UserTenantMappings.Add(new Domain.Entities.UserTenantMapping
+        {
+            Id = Guid.NewGuid(),
+            UserId = TestAuthHandler.TestUserId,
+            TenantId = TestAuthHandler.TestTenantId,
+        });
+        await db.SaveChangesAsync();
     }
 
     public new async Task DisposeAsync()

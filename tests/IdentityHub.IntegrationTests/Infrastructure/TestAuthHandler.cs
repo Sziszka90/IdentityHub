@@ -22,6 +22,7 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
     {
         var claims = new[]
         {
+            new Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", TestUserId),
             new Claim("oid", TestUserId),
             new Claim("tid", TestTenantId),
             new Claim("name", "Test User"),

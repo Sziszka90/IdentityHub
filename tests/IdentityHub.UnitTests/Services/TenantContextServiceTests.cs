@@ -1,12 +1,12 @@
-using IdentityHub.Application.Services;
+using System;
 using IdentityHub.Application.Interfaces;
+using IdentityHub.Application.Services;
 using IdentityHub.Domain.Entities;
 using IdentityHub.Domain.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
-using System;
 
 namespace IdentityHub.UnitTests.Services;
 
