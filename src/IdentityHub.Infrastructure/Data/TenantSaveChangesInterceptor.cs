@@ -47,7 +47,7 @@ public class TenantSaveChangesInterceptor : SaveChangesInterceptor
 
         var currentTenantId = _tenantContextService.GetTenantContext().TenantId;
         var effectiveTenantId = string.IsNullOrWhiteSpace(currentTenantId)
-            ? _tenantOptions.SeedTenantId
+            ? _tenantOptions.SeedTenantIds.FirstOrDefault()
             : currentTenantId;
 
         foreach (var entry in context.ChangeTracker.Entries<ITenantOwnedEntity>())

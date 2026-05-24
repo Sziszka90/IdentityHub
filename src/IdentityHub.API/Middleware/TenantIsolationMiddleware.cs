@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using IdentityHub.Application.Interfaces;
 using IdentityHub.Domain.Models;
 using Microsoft.Extensions.Options;
 
@@ -23,28 +23,41 @@ public class TenantIsolationMiddleware
         _tenantOptions = tenantOptions.Value;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, IUserTenantMappingsRepository userTenantMappingsRepository)
     {
+        var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
+        if (path == "/api/identity/me" || path == "/api/identity/status")
+        {
+            await _next(context);
+            return;
+        }
+
         if (context.User?.Identity?.IsAuthenticated is not true)
         {
             await _next(context);
             return;
         }
 
-        var tenantId = context.User.FindFirst("tid")?.Value
-                    ?? context.User.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid")?.Value;
+        var userId = context.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ?? string.Empty;
 
-        var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                  ?? context.User.FindFirst("sub")?.Value
-                  ?? context.User.FindFirst("oid")?.Value;
-
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrEmpty(userId))
         {
-            _logger.LogWarning("Missing tenant ID in JWT token for user {UserId}", userId);
+            _logger.LogWarning("Missing user ID in JWT token");
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(new { error = "Invalid tenant context" });
             return;
         }
+
+        var mapping = userTenantMappingsRepository.GetUserTenantMappingByUserId(userId);
+        if (mapping is null || string.IsNullOrWhiteSpace(mapping.TenantId))
+        {
+            _logger.LogWarning("No tenant mapping found for user {UserId}", userId);
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsJsonAsync(new { error = "Tenant is not allowed" });
+            return;
+        }
+
+        var tenantId = mapping.TenantId;
 
         if (_tenantOptions.AllowedTenantIds.Count > 0
             && !_tenantOptions.AllowedTenantIds.Contains(tenantId, StringComparer.OrdinalIgnoreCase))

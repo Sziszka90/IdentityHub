@@ -1,15 +1,20 @@
 using IdentityHub.Application.Services;
+using IdentityHub.Application.Interfaces;
+using IdentityHub.Domain.Entities;
 using IdentityHub.Domain.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
+using System;
 
 namespace IdentityHub.UnitTests.Services;
 
 public class TenantContextServiceTests
 {
     private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock = new();
+    private readonly Mock<IUserTenantMappingsRepository> _userTenantMappingsRepositoryMock = new();
+    private readonly Mock<IServiceProvider> _serviceProviderMock = new();
     private readonly IOptions<TenantConfigurationOptions> _tenantOptions = Options.Create(new TenantConfigurationOptions());
 
     private TenantContextService CreateService() => new(_httpContextAccessorMock.Object, _tenantOptions);
@@ -35,7 +40,12 @@ public class TenantContextServiceTests
     {
         var httpContext = new DefaultHttpContext();
         // Items is empty — no TenantContext stored
+        httpContext.RequestServices = _serviceProviderMock.Object;
         _httpContextAccessorMock.Setup(a => a.HttpContext).Returns(httpContext);
+        _serviceProviderMock
+            .Setup(s => s.GetService(typeof(IUserTenantMappingsRepository)))
+            .Returns(_userTenantMappingsRepositoryMock.Object);
+        _userTenantMappingsRepositoryMock.Setup(r => r.GetUserTenantMappingByUserId(It.IsAny<string>())).Returns((UserTenantMapping?)null);
 
         var result = CreateService().GetTenantContext();
 
@@ -62,12 +72,41 @@ public class TenantContextServiceTests
     {
         var httpContext = new DefaultHttpContext();
         httpContext.Items["TenantContext"] = "not a TenantContext";
+        httpContext.RequestServices = _serviceProviderMock.Object;
         _httpContextAccessorMock.Setup(a => a.HttpContext).Returns(httpContext);
+        _serviceProviderMock
+            .Setup(s => s.GetService(typeof(IUserTenantMappingsRepository)))
+            .Returns(_userTenantMappingsRepositoryMock.Object);
+        _userTenantMappingsRepositoryMock.Setup(r => r.GetUserTenantMappingByUserId(It.IsAny<string>())).Returns((UserTenantMapping?)null);
 
         var result = CreateService().GetTenantContext();
 
         Assert.NotNull(result);
         Assert.Empty(result.TenantId);
+    }
+
+    [Fact]
+    public void GetTenantContext_ReturnsMappedTenant_WhenHeaderMissingAndUserExistsInDb()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.RequestServices = _serviceProviderMock.Object;
+        httpContext.User = new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity(
+            [
+                new System.Security.Claims.Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", "user-456")
+            ],
+            "TestAuth"));
+        _httpContextAccessorMock.Setup(a => a.HttpContext).Returns(httpContext);
+        _serviceProviderMock
+            .Setup(s => s.GetService(typeof(IUserTenantMappingsRepository)))
+            .Returns(_userTenantMappingsRepositoryMock.Object);
+        _userTenantMappingsRepositoryMock.Setup(r => r.GetUserTenantMappingByUserId("user-456"))
+            .Returns(new UserTenantMapping { UserId = "user-456", TenantId = "tenant-123" });
+
+        var result = CreateService().GetTenantContext();
+
+        Assert.Equal("tenant-123", result.TenantId);
+        Assert.Equal("user-456", result.UserId);
     }
 
     // -------------------------------------------------------------------------

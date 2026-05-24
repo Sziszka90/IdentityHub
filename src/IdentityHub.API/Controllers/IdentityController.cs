@@ -1,7 +1,6 @@
 using AutoMapper;
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Contracts.DTOs.Users.Responses;
-using IdentityHub.Domain.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

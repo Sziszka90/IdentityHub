@@ -1,6 +1,7 @@
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Domain.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace IdentityHub.Application.Services;
@@ -33,16 +34,35 @@ public class TenantContextService : ITenantContextService
             return new TenantContext();
         }
 
+        // Try to get user id from claims
+        string? userId = httpContext.User?.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
 
         if (httpContext.Request.Headers.TryGetValue(_tenantOptions.HeaderName, out var tenantId))
         {
-            // Try to get user id from claims
-            string? userId = httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             httpContext.Items["TenantContext"] = new TenantContext()
             {
                 UserId = userId ?? string.Empty,
                 TenantId = tenantId.ToString()
             };
+        }
+        else
+        {
+            if (userId is not null)
+            {
+                var userTenantMappingsRepository = httpContext.RequestServices.GetService<IUserTenantMappingsRepository>();
+                var mapping = userTenantMappingsRepository?.GetUserTenantMappingByUserId(userId);
+                if (mapping is not null)
+                {
+                    var mappedContext = new TenantContext
+                    {
+                        UserId = mapping.UserId,
+                        TenantId = mapping.TenantId
+                    };
+
+                    httpContext.Items["TenantContext"] = mappedContext;
+                    return mappedContext;
+                }
+            }
         }
 
         if (httpContext.Items.TryGetValue("TenantContext", out var contextObj)

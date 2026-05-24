@@ -20,9 +20,11 @@ public class TenantContextValidationMiddleware
     public async Task InvokeAsync(HttpContext context, ITenantContextService tenantContextService)
     {
         var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
-        // Exclude Swagger, static files, and favicon/apple-touch-icon requests from tenant validation
+        // Exclude endpoints that do not require an explicit tenant header.
         if (path.StartsWith("/swagger") ||
             path.StartsWith("/health") ||
+            path == "/api/identity/me" ||
+            path == "/api/identity/status" ||
             path.StartsWith("/favicon.ico") ||
             path.StartsWith("/apple-touch-icon") ||
             path.StartsWith("/static") ||

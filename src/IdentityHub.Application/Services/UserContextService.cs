@@ -56,7 +56,7 @@ public class UserContextService : IUserContextService
                      ?? string.Empty,
             Email = GetClaimValue(claimsPrincipal, "preferred_username") ?? GetClaimValue(claimsPrincipal, ClaimTypes.Email) ?? string.Empty,
             DisplayName = GetClaimValue(claimsPrincipal, "name") ?? GetClaimValue(claimsPrincipal, ClaimTypes.Name) ?? string.Empty,
-            TenantId = GetClaimValue(claimsPrincipal, "http://schemas.microsoft.com/identity/claims/tenantid") ?? tenantId ?? string.Empty,
+            TenantId = tenantId ?? string.Empty,
             CreatedAt = DateTime.UtcNow
         };
 

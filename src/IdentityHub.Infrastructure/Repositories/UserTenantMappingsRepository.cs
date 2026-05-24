@@ -25,7 +25,13 @@ public class UserTenantMappingsRepository : IUserTenantMappingsRepository
 
     public async Task<UserTenantMapping?> GetUserTenantMappingByUserIdAsync(string userId, CancellationToken ct = default)
         => await _db.UserTenantMappings
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(m => m.UserId == userId, ct);
+
+    public UserTenantMapping? GetUserTenantMappingByUserId(string userId)
+        => _db.UserTenantMappings
+            .IgnoreQueryFilters()
+            .FirstOrDefault(m => m.UserId == userId);
 
     public async Task<UserTenantMapping> UpsertUserTenantMappingAsync(string userId, CancellationToken ct = default)
     {

@@ -42,7 +42,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
                 ["EntraId:Audience"] = "api://00000000-0000-0000-0000-000000000000",
                 ["TenantConfiguration:HeaderName"] = "X-Tenant-Id",
                 ["TenantConfiguration:EnableStartupSeeding"] = "false",
-                ["TenantConfiguration:SeedTenantId"] = TestAuthHandler.TestTenantId,
+                ["TenantConfiguration:SeedTenantIds:0"] = TestAuthHandler.TestTenantId,
                 ["TenantConfiguration:AllowedTenantIds:0"] = TestAuthHandler.TestTenantId,
                 // Dummy connection string – replaced below with the SQLite connection
                 ["ConnectionStrings:AuthorizationDb"] = "DataSource=:memory:",

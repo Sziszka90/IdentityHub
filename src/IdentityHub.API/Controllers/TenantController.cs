@@ -13,13 +13,16 @@ namespace IdentityHub.API.Controllers;
 public class TenantController : ControllerBase
 {
     private readonly ITenantContextService _tenantContextService;
+    private readonly IUserTenantMappingsRepository _userTenantMappingsRepository;
     private readonly TenantConfigurationOptions _tenantOptions;
 
     public TenantController(
         ITenantContextService tenantContextService,
+        IUserTenantMappingsRepository userTenantMappingsRepository,
         IOptions<TenantConfigurationOptions> tenantOptions)
     {
         _tenantContextService = tenantContextService;
+        _userTenantMappingsRepository = userTenantMappingsRepository;
         _tenantOptions = tenantOptions.Value;
     }
 

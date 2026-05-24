@@ -13,9 +13,9 @@ public interface IUserTenantMappingsRepository
     Task<List<UserTenantMapping>> GetAllUserTenantMappingsAsync(CancellationToken ct = default);
 
     /// <summary>
-    /// Gets a mapping by Graph user ID.
+    /// Gets a mapping by Graph user ID synchronously.
     /// </summary>
-    Task<UserTenantMapping?> GetUserTenantMappingByUserIdAsync(string userId, CancellationToken ct = default);
+    UserTenantMapping? GetUserTenantMappingByUserId(string userId);
 
     /// <summary>
     /// Ensures the given user ID is stored for the current tenant.
