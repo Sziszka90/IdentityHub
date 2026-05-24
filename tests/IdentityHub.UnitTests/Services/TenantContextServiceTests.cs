@@ -15,7 +15,7 @@ public class TenantContextServiceTests
     private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock = new();
     private readonly Mock<IUserTenantMappingsRepository> _userTenantMappingsRepositoryMock = new();
     private readonly Mock<IServiceProvider> _serviceProviderMock = new();
-    private readonly IOptions<TenantConfigurationOptions> _tenantOptions = Options.Create(new TenantConfigurationOptions());
+    private readonly IOptions<TenantConfigurationOptions> _tenantOptions = Options.Create(new TenantConfigurationOptions { HeaderName = "X-Tenant-Id" });
 
     private TenantContextService CreateService() => new(_httpContextAccessorMock.Object, _tenantOptions);
 
@@ -107,6 +107,57 @@ public class TenantContextServiceTests
 
         Assert.Equal("tenant-123", result.TenantId);
         Assert.Equal("user-456", result.UserId);
+    }
+
+    [Fact]
+    public void GetTenantContext_ReturnsHeaderTenant_WhenHeaderMatchesDbMapping()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.RequestServices = _serviceProviderMock.Object;
+        httpContext.Request.Headers["X-Tenant-Id"] = "tenant-123";
+        httpContext.User = new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity(
+            [
+                new System.Security.Claims.Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", "user-456")
+            ],
+            "TestAuth"));
+        _httpContextAccessorMock.Setup(a => a.HttpContext).Returns(httpContext);
+        _serviceProviderMock
+            .Setup(s => s.GetService(typeof(IUserTenantMappingsRepository)))
+            .Returns(_userTenantMappingsRepositoryMock.Object);
+        _userTenantMappingsRepositoryMock.Setup(r => r.GetUserTenantMappingByUserId("user-456"))
+            .Returns(new UserTenantMapping { UserId = "user-456", TenantId = "tenant-123" });
+
+        var result = CreateService().GetTenantContext();
+
+        Assert.Equal("tenant-123", result.TenantId);
+        Assert.Equal("user-456", result.UserId);
+    }
+
+    [Fact]
+    public void GetTenantContext_ReturnsEmptyContext_WhenHeaderDoesNotMatchDbMapping()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.RequestServices = _serviceProviderMock.Object;
+        httpContext.Request.Headers["X-Tenant-Id"] = "tenant-header";
+        httpContext.User = new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity(
+            [
+                new System.Security.Claims.Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", "user-456")
+            ],
+            "TestAuth"));
+        _httpContextAccessorMock.Setup(a => a.HttpContext).Returns(httpContext);
+        _serviceProviderMock
+            .Setup(s => s.GetService(typeof(IUserTenantMappingsRepository)))
+            .Returns(_userTenantMappingsRepositoryMock.Object);
+        _userTenantMappingsRepositoryMock.Setup(r => r.GetUserTenantMappingByUserId("user-456"))
+            .Returns(new UserTenantMapping { UserId = "user-456", TenantId = "tenant-123" });
+
+        var result = CreateService().GetTenantContext();
+
+        Assert.NotNull(result);
+        Assert.Empty(result.TenantId);
+        Assert.Empty(result.UserId);
     }
 
     // -------------------------------------------------------------------------

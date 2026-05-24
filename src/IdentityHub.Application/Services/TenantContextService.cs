@@ -1,4 +1,5 @@
 using IdentityHub.Application.Interfaces;
+using IdentityHub.Domain.Entities;
 using IdentityHub.Domain.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,33 +37,45 @@ public class TenantContextService : ITenantContextService
 
         // Try to get user id from claims
         string? userId = httpContext.User?.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+        string? tenantIdFromHeader = null;
 
-        if (httpContext.Request.Headers.TryGetValue(_tenantOptions.HeaderName, out var tenantId))
+        if (httpContext.Request.Headers.TryGetValue(_tenantOptions.HeaderName, out var tenantIdHeader))
+        {
+            tenantIdFromHeader = tenantIdHeader.ToString();
+        }
+
+        UserTenantMapping? mapping = null;
+
+        if (userId is not null)
+        {
+            var userTenantMappingsRepository = httpContext.RequestServices.GetService<IUserTenantMappingsRepository>();
+            mapping = userTenantMappingsRepository?.GetUserTenantMappingByUserId(userId);
+        }
+
+        if (mapping is not null && !string.IsNullOrWhiteSpace(tenantIdFromHeader) &&
+            !string.Equals(tenantIdFromHeader, mapping.TenantId, StringComparison.OrdinalIgnoreCase))
+        {
+            return new TenantContext();
+        }
+
+        if (!string.IsNullOrWhiteSpace(tenantIdFromHeader))
         {
             httpContext.Items["TenantContext"] = new TenantContext()
             {
                 UserId = userId ?? string.Empty,
-                TenantId = tenantId.ToString()
+                TenantId = tenantIdFromHeader
             };
         }
-        else
+        else if (mapping is not null)
         {
-            if (userId is not null)
+            var mappedContext = new TenantContext
             {
-                var userTenantMappingsRepository = httpContext.RequestServices.GetService<IUserTenantMappingsRepository>();
-                var mapping = userTenantMappingsRepository?.GetUserTenantMappingByUserId(userId);
-                if (mapping is not null)
-                {
-                    var mappedContext = new TenantContext
-                    {
-                        UserId = mapping.UserId,
-                        TenantId = mapping.TenantId
-                    };
+                UserId = mapping.UserId,
+                TenantId = mapping.TenantId
+            };
 
-                    httpContext.Items["TenantContext"] = mappedContext;
-                    return mappedContext;
-                }
-            }
+            httpContext.Items["TenantContext"] = mappedContext;
+            return mappedContext;
         }
 
         if (httpContext.Items.TryGetValue("TenantContext", out var contextObj)
