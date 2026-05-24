@@ -78,7 +78,7 @@ jobs:
       - name: Pack IdentityHub.Client
         shell: bash
         run: |
-          PACKAGE_VERSION="1.0.0-ci.${{ github.run_number }}"
+          PACKAGE_VERSION="1.0.0-dev-${SHORT_SHA}"
 
           dotnet pack src/IdentityHub.Client/IdentityHub.Client.csproj \
             --configuration ${{ env.BUILD_CONFIGURATION }} \

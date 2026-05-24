@@ -3,10 +3,19 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UseLocalIdentityHubClient Condition="'$(UseLocalIdentityHubClient)' == ''">false</UseLocalIdentityHubClient>
+    <IdentityHubClientPackageVersion Condition="'$(IdentityHubClientPackageVersion)' == ''">1.0.0</IdentityHubClientPackageVersion>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(UseLocalIdentityHubClient)' == 'true'">
     <ProjectReference Include="..\IdentityHub.Client\IdentityHub.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalIdentityHubClient)' != 'true'">
+    <PackageReference Include="IdentityHub.Client" Version="$(IdentityHubClientPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 </Project>
