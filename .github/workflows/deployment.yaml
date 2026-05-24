@@ -73,11 +73,28 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore dependencies
-        run: dotnet restore src/IdentityHub.Client/IdentityHub.Client.csproj
+        run: |
+          dotnet restore src/IdentityHub.Contracts/IdentityHub.Contracts.csproj
+          dotnet restore src/IdentityHub.Client/IdentityHub.Client.csproj
+
+      - name: Pack IdentityHub.Contracts
+        shell: bash
+        run: |
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:6}"
+          PACKAGE_VERSION="1.0.0-dev-${SHORT_SHA}"
+
+          dotnet pack src/IdentityHub.Contracts/IdentityHub.Contracts.csproj \
+            --configuration ${{ env.BUILD_CONFIGURATION }} \
+            --no-restore \
+            --output ./artifacts/nuget \
+             /p:PackageVersion="$PACKAGE_VERSION"
 
       - name: Pack IdentityHub.Client
         shell: bash
         run: |
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:6}"
           PACKAGE_VERSION="1.0.0-dev-${SHORT_SHA}"
 
           dotnet pack src/IdentityHub.Client/IdentityHub.Client.csproj \
@@ -89,13 +106,18 @@ jobs:
       - name: Upload NuGet package
         uses: actions/upload-artifact@v7
         with:
-          name: identity-hub-client
+          name: identity-hub-packages
           path: artifacts/nuget/*.nupkg
 
-      - name: Push NuGet package to nuget.org
+      - name: Push NuGet packages to nuget.org
         shell: bash
         run: |
-          dotnet nuget push ./artifacts/nuget/*.nupkg \
+          dotnet nuget push ./artifacts/nuget/IdentityHub.Contracts.*.nupkg \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+          dotnet nuget push ./artifacts/nuget/IdentityHub.Client.*.nupkg \
             --api-key "${{ secrets.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate

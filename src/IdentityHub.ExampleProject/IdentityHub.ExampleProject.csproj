@@ -3,8 +3,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseLocalIdentityHubClient Condition="'$(UseLocalIdentityHubClient)' == ''">false</UseLocalIdentityHubClient>
-    <IdentityHubClientPackageVersion Condition="'$(IdentityHubClientPackageVersion)' == ''">1.0.0</IdentityHubClientPackageVersion>
+    <UseLocalIdentityHubClient Condition="'$(UseLocalIdentityHubClient)' == ''">true</UseLocalIdentityHubClient>
+    <IdentityHubClientPackageVersion Condition="'$(IdentityHubClientPackageVersion)' == ''">1.0.0-ci.20</IdentityHubClientPackageVersion>
+    <UseLocalIdentityHubContracts Condition="'$(UseLocalIdentityHubContracts)' == ''">true</UseLocalIdentityHubContracts>
+    <IdentityHubContractsPackageVersion Condition="'$(IdentityHubContractsPackageVersion)' == ''">1.0.0</IdentityHubContractsPackageVersion>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(UseLocalIdentityHubClient)' == 'true'">
@@ -13,6 +15,14 @@
 
   <ItemGroup Condition="'$(UseLocalIdentityHubClient)' != 'true'">
     <PackageReference Include="IdentityHub.Client" Version="$(IdentityHubClientPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalIdentityHubContracts)' == 'true'">
+    <ProjectReference Include="..\IdentityHub.Contracts\IdentityHub.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalIdentityHubContracts)' != 'true'">
+    <PackageReference Include="IdentityHub.Contracts" Version="$(IdentityHubContractsPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>
