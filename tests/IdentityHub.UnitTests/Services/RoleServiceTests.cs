@@ -28,7 +28,7 @@ public class RoleServiceTests
     [Fact]
     public async Task GetDirectRolesForUserAsync_ReturnsEmpty_WhenUserHasNoGroups()
     {
-        _graphServiceMock.Setup(g => g.GetUserDirectGroupIdsAsync("u1")).ReturnsAsync([]);
+        _graphServiceMock.Setup(g => g.GetUserDirectGroupIdsAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
         var result = await CreateService().GetDirectRolesForUserAsync("u1");
 
@@ -41,7 +41,7 @@ public class RoleServiceTests
         var roleId = Guid.NewGuid();
         var role = new Role { Id = roleId, Name = "Admin" };
 
-        _graphServiceMock.Setup(g => g.GetUserDirectGroupIdsAsync("u1")).ReturnsAsync(["grp-admins"]);
+        _graphServiceMock.Setup(g => g.GetUserDirectGroupIdsAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(["grp-admins"]);
         _rolesRepoMock.Setup(r => r.GetGroupRoleMappingsByGroupIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new GroupRoleMapping { GroupId = Guid.NewGuid(), RoleId = roleId }]);
         _rolesRepoMock.Setup(r => r.GetRolesByIdsAsync(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()))
@@ -60,7 +60,7 @@ public class RoleServiceTests
     [Fact]
     public async Task GetTransitiveRolesForUserAsync_ReturnsEmpty_WhenUserHasNoGroups()
     {
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1")).ReturnsAsync([]);
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
         var result = await CreateService().GetTransitiveRolesForUserAsync("u1");
 
@@ -73,7 +73,7 @@ public class RoleServiceTests
         var roleId = Guid.NewGuid();
         var role = new Role { Id = roleId, Name = "Viewer" };
 
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1")).ReturnsAsync(["grp-viewers"]);
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(["grp-viewers"]);
         _rolesRepoMock.Setup(r => r.GetGroupRoleMappingsByGroupIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new GroupRoleMapping { GroupId = Guid.NewGuid(), RoleId = roleId }]);
         _rolesRepoMock.Setup(r => r.GetRolesByIdsAsync(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()))
@@ -117,15 +117,20 @@ public class RoleServiceTests
     public async Task CreateRoleAsync_CreatesRoleAndAssignsPermissions()
     {
         var created = new Role { Id = Guid.NewGuid(), Name = "Editor" };
+        var permissionId = Guid.NewGuid();
+        var createdPermission = new Permission { Id = permissionId, Name = "articles.write" };
+
         _rolesRepoMock.SetupSequence(r => r.GetRoleByNameAsync("Editor", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Role?)null)   // first call: not found → proceed to create
             .ReturnsAsync(created);      // second call: return after creation
         _rolesRepoMock.Setup(r => r.CreateRoleAsync(It.IsAny<Role>(), It.IsAny<CancellationToken>())).ReturnsAsync(created);
+        _permissionsRepoMock.Setup(p => p.GetPermissionByNameAsync("articles.write", It.IsAny<CancellationToken>())).ReturnsAsync((Permission?)null);
+        _permissionsRepoMock.Setup(p => p.CreatePermissionAsync(It.IsAny<Permission>(), It.IsAny<CancellationToken>())).ReturnsAsync(createdPermission);
 
         var result = await CreateService().CreateRoleAsync("Editor", "Edits content", ["articles.write"]);
 
         Assert.NotNull(result);
-        _permissionsRepoMock.Verify(p => p.SetRolePermissionsAsync("Editor", It.IsAny<List<string>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _permissionsRepoMock.Verify(p => p.SetRolePermissionsAsync(created.Id, It.Is<List<Guid>>(ids => ids.Count == 1 && ids[0] == permissionId), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // -------------------------------------------------------------------------
@@ -149,17 +154,20 @@ public class RoleServiceTests
         var roleId = Guid.NewGuid();
         var role = new Role { Id = roleId, Name = "Admin", Description = "Old" };
         var updated = new Role { Id = role.Id, Name = "Admin", Description = "New" };
+        var permissionId = Guid.NewGuid();
+        var existingPermission = new Permission { Id = permissionId, Name = "users.read" };
 
         _rolesRepoMock.SetupSequence(r => r.GetRoleByIdAsync(roleId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(role)
             .ReturnsAsync(updated);
         _rolesRepoMock.Setup(r => r.UpdateRoleAsync(It.IsAny<Role>(), It.IsAny<CancellationToken>())).ReturnsAsync(updated);
+        _permissionsRepoMock.Setup(p => p.GetPermissionByNameAsync("users.read", It.IsAny<CancellationToken>())).ReturnsAsync(existingPermission);
 
         var result = await CreateService().UpdateRoleAsync(roleId, "New", ["users.read"]);
 
         Assert.NotNull(result);
         Assert.Equal("New", result!.Description);
-        _permissionsRepoMock.Verify(p => p.SetRolePermissionsAsync("Admin", It.IsAny<List<string>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _permissionsRepoMock.Verify(p => p.SetRolePermissionsAsync(roleId, It.Is<List<Guid>>(ids => ids.Count == 1 && ids[0] == permissionId), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // -------------------------------------------------------------------------

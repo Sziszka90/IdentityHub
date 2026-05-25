@@ -6,9 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IdentityHub.API.Controllers;
 
-/// <summary>
-/// Authorization testing and permission checking endpoints
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
@@ -28,9 +25,6 @@ public class AuthorizationController : ControllerBase
         _logger = logger;
     }
 
-    /// <summary>
-    /// Check if user has a specific permission
-    /// </summary>
     [HttpPost("check")]
     [ProducesResponseType(typeof(PermissionCheckResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> CheckPermission([FromBody] PermissionCheckRequest request)
@@ -39,8 +33,10 @@ public class AuthorizationController : ControllerBase
         {
             return BadRequest(ModelState);
         }
+
         var userContext = await _userContextService.GetUserContext(User);
         var hasPermission = await _userService.UserHasPermissionAsync(userContext.UserId, request.Permission);
+
         var result = new PermissionCheckResponse
         {
             UserId = userContext.UserId,
@@ -50,9 +46,7 @@ public class AuthorizationController : ControllerBase
                 ? $"User has permission '{request.Permission}' or a matching wildcard"
                 : $"User does not have permission '{request.Permission}'"
         };
-        _logger.LogInformation(
-            "Permission check: User {UserId} - Permission {Permission} - Result {Result}",
-            userContext.UserId, request.Permission, hasPermission);
+
         return Ok(result);
     }
 }

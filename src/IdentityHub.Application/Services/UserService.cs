@@ -1,3 +1,4 @@
+using System.Threading;
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Contracts.DTOs.Permissions.Responses;
 using IdentityHub.Contracts.DTOs.Users.Responses;
@@ -39,13 +40,13 @@ public class UserService : IUserService
     /// Gets all users with their effective permissions (tenant-scoped).
     /// </summary>
     /// <returns>List of users with their resolved groups, roles, and permissions.</returns>
-    public async Task<List<UserResponse>> GetUsersWithPermissionsAsync()
+    public async Task<List<UserResponse>> GetUsersWithPermissionsAsync(CancellationToken cancellationToken = default)
     {
         var tenantContext = _tenantContextService.GetTenantContext();
 
         _logger.LogInformation("Getting users for tenant: {TenantId}", tenantContext.TenantId);
 
-        var trackedUsers = await _userTenantMappingsRepository.GetAllUserTenantMappingsAsync();
+        var trackedUsers = await _userTenantMappingsRepository.GetAllUserTenantMappingsAsync(cancellationToken);
         var userPermissions = new List<UserResponse>();
 
         foreach (var trackedUser in trackedUsers)
@@ -55,16 +56,16 @@ public class UserService : IUserService
                 continue;
             }
 
-            var graphUser = await _graphService.GetUserAsync(trackedUser.UserId);
+            var graphUser = await _graphService.GetUserAsync(trackedUser.UserId, cancellationToken);
             if (graphUser is null)
             {
                 _logger.LogWarning("Tracked user {UserId} was not found in Graph API", trackedUser.UserId);
                 continue;
             }
 
-            var groupIds = await _graphService.GetUserTransitiveGroupIdsAsync(trackedUser.UserId);
-            var roles = await _permissionService.MapGroupsToRolesAsync(groupIds);
-            var permissions = await _permissionService.ResolvePermissionsAsync(roles);
+            var groupIds = await _graphService.GetUserTransitiveGroupIdsAsync(trackedUser.UserId, cancellationToken);
+            var roles = await _permissionService.MapGroupsToRolesAsync(groupIds, cancellationToken);
+            var permissions = await _permissionService.ResolvePermissionsAsync(roles, cancellationToken);
 
             userPermissions.Add(new UserResponse
             {
@@ -86,7 +87,7 @@ public class UserService : IUserService
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
     /// <returns>The user's permissions DTO, or <c>null</c> if the user was not found.</returns>
-    public async Task<UserResponse?> GetUserPermissionsAsync(string userId)
+    public async Task<UserResponse?> GetUserPermissionsAsync(string userId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(userId))
         {
@@ -97,16 +98,16 @@ public class UserService : IUserService
 
         _logger.LogInformation("Getting permissions for user {UserId} in tenant {TenantId}", userId, tenantContext.TenantId);
 
-        var graphUser = await _graphService.GetUserAsync(userId);
+        var graphUser = await _graphService.GetUserAsync(userId, cancellationToken);
         if (graphUser is null)
         {
             _logger.LogWarning("User {UserId} not found in Graph API", userId);
             throw new KeyNotFoundException($"User with ID '{userId}' was not found");
         }
 
-        var groupIds = await _graphService.GetUserTransitiveGroupIdsAsync(userId);
-        var roles = await _permissionService.MapGroupsToRolesAsync(groupIds);
-        var permissions = await _permissionService.ResolvePermissionsAsync(roles);
+        var groupIds = await _graphService.GetUserTransitiveGroupIdsAsync(userId, cancellationToken);
+        var roles = await _permissionService.MapGroupsToRolesAsync(groupIds, cancellationToken);
+        var permissions = await _permissionService.ResolvePermissionsAsync(roles, cancellationToken);
 
         return new UserResponse
         {
@@ -125,7 +126,7 @@ public class UserService : IUserService
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
     /// <returns>The resolution chain DTO, or <c>null</c> if the user was not found.</returns>
-    public async Task<PermissionResolutionChainResponse?> GetPermissionResolutionChainAsync(string userId)
+    public async Task<PermissionResolutionChainResponse?> GetPermissionResolutionChainAsync(string userId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(userId))
         {
@@ -136,23 +137,23 @@ public class UserService : IUserService
 
         _logger.LogInformation("Getting permission resolution chain for user {UserId} in tenant {TenantId}", userId, tenantContext.TenantId);
 
-        var graphUser = await _graphService.GetUserAsync(userId)
+        var graphUser = await _graphService.GetUserAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException($"User with ID '{userId}' was not found");
 
-        var groupIds = await _graphService.GetUserTransitiveGroupIdsAsync(userId);
+        var groupIds = await _graphService.GetUserTransitiveGroupIdsAsync(userId, cancellationToken);
         var groupResolutions = new List<GroupResolutionResponse>();
         var allRoles = new HashSet<string>();
         var allPermissions = new HashSet<string>();
 
         foreach (var groupId in groupIds)
         {
-            var group = await _graphService.GetGroupByIdAsync(groupId);
+            var group = await _graphService.GetGroupByIdAsync(groupId, cancellationToken);
             var groupName = group?.DisplayName ?? groupId;
 
-            var roles = await _permissionService.MapGroupsToRolesAsync([groupId]);
+            var roles = await _permissionService.MapGroupsToRolesAsync([groupId], cancellationToken);
             var role = roles.FirstOrDefault();
             var permissions = role is not null
-                ? await _permissionService.ResolvePermissionsAsync([role])
+                ? await _permissionService.ResolvePermissionsAsync([role], cancellationToken)
                 : [];
 
             groupResolutions.Add(new GroupResolutionResponse
@@ -190,16 +191,16 @@ public class UserService : IUserService
     /// <param name="user">User entity to create (Microsoft Graph model).</param>
     /// <param name="roleIds">List of role IDs to assign via Azure AD group membership.</param>
     /// <returns>The created <see cref="User"/> object.</returns>
-    public async Task<User?> CreateUserWithRolesAsync(User user, List<string> roleIds)
+    public async Task<User?> CreateUserWithRolesAsync(User user, List<string> roleIds, CancellationToken cancellationToken = default)
     {
-        var createdUser = await _graphService.CreateUserAsync(user);
+        var createdUser = await _graphService.CreateUserAsync(user, cancellationToken);
         if (createdUser is null)
         {
             _logger.LogWarning("Failed to create user {UserPrincipalName}", user.UserPrincipalName);
             return null;
         }
 
-        await _userTenantMappingsRepository.UpsertUserTenantMappingAsync(createdUser.Id!);
+        await _userTenantMappingsRepository.UpsertUserTenantMappingAsync(createdUser.Id!, cancellationToken);
 
         var groupIds = new List<Guid>();
         if (roleIds != null && roleIds.Count > 0)
@@ -212,7 +213,7 @@ public class UserService : IUserService
                     continue;
                 }
 
-                var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid);
+                var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid, cancellationToken);
                 if (mapping != null && mapping.GroupId != Guid.Empty)
                 {
                     groupIds.Add(mapping.GroupId);
@@ -226,7 +227,7 @@ public class UserService : IUserService
 
         if (groupIds.Count > 0)
         {
-            await _graphService.AddUserToGroupsAsync(createdUser.Id!, [.. groupIds.Select(id => id.ToString())]);
+            await _graphService.AddUserToGroupsAsync(createdUser.Id!, [.. groupIds.Select(id => id.ToString())], cancellationToken);
         }
 
         return createdUser;
@@ -236,9 +237,9 @@ public class UserService : IUserService
     /// Updates an existing user's profile and adjusts their Azure AD group memberships
     /// based on the supplied role IDs. Only adds the user to groups they do not already belong to.
     /// </summary>
-    public async Task<User?> UpdateUserWithRolesAsync(User user, string userId, List<string> roleIds)
+    public async Task<User?> UpdateUserWithRolesAsync(User user, string userId, List<string> roleIds, CancellationToken cancellationToken = default)
     {
-        var updatedUser = await _graphService.UpdateUserAsync(user, userId);
+        var updatedUser = await _graphService.UpdateUserAsync(user, userId, cancellationToken);
         if (updatedUser is null)
         {
             _logger.LogWarning("Failed to update user {UserId} in Graph API", user.Id);
@@ -260,7 +261,7 @@ public class UserService : IUserService
                 continue;
             }
 
-            var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid);
+            var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid, cancellationToken);
             if (mapping != null && mapping.GroupId != Guid.Empty)
             {
                 targetGroupIds.Add(mapping.GroupId.ToString());
@@ -277,7 +278,7 @@ public class UserService : IUserService
         }
 
         // Converge the user's memberships to the requested role set.
-        var currentGroupIds = await _graphService.GetUserTransitiveGroupIdsAsync(updatedUser.Id!);
+        var currentGroupIds = await _graphService.GetUserTransitiveGroupIdsAsync(updatedUser.Id!, cancellationToken);
         var groupsToAdd = targetGroupIds
             .Where(gid => !currentGroupIds.Contains(gid, StringComparer.OrdinalIgnoreCase))
             .ToList();
@@ -287,7 +288,7 @@ public class UserService : IUserService
 
         if (groupsToAdd.Count > 0)
         {
-            await _graphService.AddUserToGroupsAsync(updatedUser.Id!, groupsToAdd);
+            await _graphService.AddUserToGroupsAsync(updatedUser.Id!, groupsToAdd, cancellationToken);
             _logger.LogInformation(
                 "Added user {UserId} to {Count} new group(s) during update",
                 updatedUser.Id, groupsToAdd.Count);
@@ -295,7 +296,7 @@ public class UserService : IUserService
 
         if (groupsToRemove.Count > 0)
         {
-            await _graphService.RemoveUserFromGroupsAsync(updatedUser.Id!, groupsToRemove);
+            await _graphService.RemoveUserFromGroupsAsync(updatedUser.Id!, groupsToRemove, cancellationToken);
             _logger.LogInformation(
                 "Removed user {UserId} from {Count} stale group(s) during update",
                 updatedUser.Id, groupsToRemove.Count);
@@ -310,7 +311,7 @@ public class UserService : IUserService
     /// <param name="userId">The unique identifier of the user.</param>
     /// <param name="roleIds">List of role IDs to assign.</param>
     /// <returns>Updated permissions DTO for the user, or <c>null</c> if the user or any role was not found.</returns>
-    public async Task<UserResponse?> AssignRolesToUserAsync(string userId, List<string> roleIds)
+    public async Task<UserResponse?> AssignRolesToUserAsync(string userId, List<string> roleIds, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(userId) || roleIds is null || roleIds.Count == 0)
         {
@@ -319,7 +320,7 @@ public class UserService : IUserService
 
         var tenantContext = _tenantContextService.GetTenantContext();
 
-        var graphUser = await _graphService.GetUserAsync(userId);
+        var graphUser = await _graphService.GetUserAsync(userId, cancellationToken);
         if (graphUser is null)
         {
             _logger.LogWarning("User {UserId} not found in Graph API", userId);
@@ -335,7 +336,7 @@ public class UserService : IUserService
                 _logger.LogWarning("Invalid role ID format: {RoleId}", roleIdStr);
                 continue;
             }
-            var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid);
+            var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid, cancellationToken);
             if (mapping != null && mapping.GroupId != Guid.Empty)
             {
                 groupIds.Add(mapping.GroupId.ToString());
@@ -348,13 +349,13 @@ public class UserService : IUserService
 
         if (groupIds.Count > 0)
         {
-            await _graphService.AddUserToGroupsAsync(userId, groupIds);
+            await _graphService.AddUserToGroupsAsync(userId, groupIds, cancellationToken);
         }
 
-        var roles = await _permissionService.MapGroupsToRolesAsync(groupIds);
+        var roles = await _permissionService.MapGroupsToRolesAsync(groupIds, cancellationToken);
         foreach (var role in roles)
         {
-            var perms = await _permissionService.ResolvePermissionsAsync([role]);
+            var perms = await _permissionService.ResolvePermissionsAsync([role], cancellationToken);
             foreach (var perm in perms)
             {
                 allPermissions.Add(perm);
@@ -381,7 +382,7 @@ public class UserService : IUserService
     /// <param name="userId">The unique identifier of the user.</param>
     /// <param name="roleIds">List of role IDs to remove.</param>
     /// <returns>Updated permissions DTO for the user, or <c>null</c> if the user was not found.</returns>
-    public async Task<UserResponse?> RemoveRolesFromUserAsync(string userId, List<string> roleIds)
+    public async Task<UserResponse?> RemoveRolesFromUserAsync(string userId, List<string> roleIds, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(userId) || roleIds is null || roleIds.Count == 0)
         {
@@ -390,7 +391,7 @@ public class UserService : IUserService
 
         var tenantContext = _tenantContextService.GetTenantContext();
 
-        var graphUser = await _graphService.GetUserAsync(userId);
+        var graphUser = await _graphService.GetUserAsync(userId, cancellationToken);
         if (graphUser is null)
         {
             _logger.LogWarning("User {UserId} not found in Graph API", userId);
@@ -406,7 +407,7 @@ public class UserService : IUserService
                 continue;
             }
 
-            var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid);
+            var mapping = await _roleService.GetGroupMappingByRoleIdAsync(roleGuid, cancellationToken);
             if (mapping != null && mapping.GroupId != Guid.Empty)
             {
                 groupIds.Add(mapping.GroupId.ToString());
@@ -419,14 +420,14 @@ public class UserService : IUserService
 
         if (groupIds.Count > 0)
         {
-            await _graphService.RemoveUserFromGroupsAsync(userId, groupIds);
+            await _graphService.RemoveUserFromGroupsAsync(userId, groupIds, cancellationToken);
         }
 
         _logger.LogInformation("Removed roles {Roles} from user {UserId}", string.Join(", ", roleIds), userId);
 
-        var remainingGroupIds = await _graphService.GetUserTransitiveGroupIdsAsync(userId);
-        var remainingRoles = await _permissionService.MapGroupsToRolesAsync(remainingGroupIds);
-        var remainingPermissions = await _permissionService.ResolvePermissionsAsync(remainingRoles);
+        var remainingGroupIds = await _graphService.GetUserTransitiveGroupIdsAsync(userId, cancellationToken);
+        var remainingRoles = await _permissionService.MapGroupsToRolesAsync(remainingGroupIds, cancellationToken);
+        var remainingPermissions = await _permissionService.ResolvePermissionsAsync(remainingRoles, cancellationToken);
 
         return new UserResponse
         {
@@ -446,14 +447,14 @@ public class UserService : IUserService
     /// <param name="userId">The unique identifier of the user.</param>
     /// <param name="permission">The permission to check.</param>
     /// <returns>True if the user has the permission; otherwise, false.</returns>
-    public async Task<bool> UserHasPermissionAsync(string userId, string permission)
+    public async Task<bool> UserHasPermissionAsync(string userId, string permission, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(permission))
         {
             return false;
         }
 
-        var userPermissionsDto = await GetUserPermissionsAsync(userId);
+        var userPermissionsDto = await GetUserPermissionsAsync(userId, cancellationToken);
         if (userPermissionsDto == null)
         {
             return false;

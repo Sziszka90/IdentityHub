@@ -1,6 +1,7 @@
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph.Drives.Item.Items.Item.Workbook.Functions.VarA;
 
 namespace IdentityHub.Application.Services;
 
@@ -33,8 +34,10 @@ public class PermissionService : IPermissionService
     /// </summary>
     /// <param name="roles">Role entities to resolve permissions for.</param>
     /// <returns>Deduplicated list of permission names granted by any of the specified roles.</returns>
-    public async Task<List<string>> ResolvePermissionsAsync(IEnumerable<Role> roles)
+    public async Task<List<string>> ResolvePermissionsAsync(IEnumerable<Role> roles, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Resolving permissions based on provided roles.");
+
         if (roles is null || !roles.Any())
         {
             return [];
@@ -62,11 +65,11 @@ public class PermissionService : IPermissionService
             return [.. permissions];
         }
 
-        // Fallback: use DB mapping by role name (for unit tests and legacy code)
-        Dictionary<string, List<string>>? rolePermissionsMapping = null;
+        // Fallback: use DB mapping by role id.
+        Dictionary<Guid, List<string>>? rolePermissionsMapping = null;
         try
         {
-            rolePermissionsMapping = await _permissionsRepository.GetAllRolePermissionsAsync();
+            rolePermissionsMapping = await _permissionsRepository.GetAllRolePermissionsAsync(cancellationToken);
             _logger.LogDebug("Resolved role-permissions from database");
         }
         catch (Exception ex)
@@ -78,7 +81,7 @@ public class PermissionService : IPermissionService
         {
             foreach (var role in roles)
             {
-                if (!string.IsNullOrEmpty(role.Name) && rolePermissionsMapping.TryGetValue(role.Name, out var dbPerms) && dbPerms is not null)
+                if (rolePermissionsMapping.TryGetValue(role.Id, out var dbPerms) && dbPerms is not null)
                 {
                     foreach (string permission in dbPerms)
                     {
@@ -95,18 +98,32 @@ public class PermissionService : IPermissionService
     /// Maps Entra ID group claim values (names or object IDs) to application role names.
     /// </summary>
     /// <param name="groups">Group claim values from the user's token.</param>
-    /// <returns>List of application role names that correspond to the given groups.</returns>
-    public async Task<List<Role>> MapGroupsToRolesAsync(IEnumerable<string> groups)
+    /// <returns>List of application role ids that correspond to the given groups.</returns>
+    public async Task<List<Role>> MapGroupsToRolesAsync(IEnumerable<string> groupIds, CancellationToken cancellationToken = default)
     {
-        if (groups is null || !groups.Any())
+        _logger.LogInformation("Mapping groups to roles.");
+
+        if (groupIds is null || !groupIds.Any())
         {
             return [];
         }
 
-        Dictionary<string, Role>? groupRoleMapping = null;
+        HashSet<GroupRoleMapping> groupRoleMappings = [];
+
         try
         {
-            groupRoleMapping = await _rolesRepository.GetGroupToRoleDictionaryAsync();
+            foreach (var groupId in groupIds)
+            {
+                if (Guid.TryParse(groupId, out var groupIdGuid))
+                {
+                    var map = await _rolesRepository.GetGroupRoleMappingByGroupIdAsync(groupIdGuid, cancellationToken);
+                    if (map is not null)
+                    {
+                        groupRoleMappings.Add(map);
+                    }
+                }
+            }
+
             _logger.LogDebug("Resolved group-role mapping from database");
         }
         catch (Exception ex)
@@ -114,19 +131,10 @@ public class PermissionService : IPermissionService
             _logger.LogWarning(ex, "Failed to read group-role mappings from DB");
         }
 
-        var roles = new HashSet<Role>();
-        if (groupRoleMapping is not null)
-        {
-            foreach (string group in groups)
-            {
-                if (groupRoleMapping.TryGetValue(group, out var dbRole) && dbRole is not null)
-                {
-                    roles.Add(dbRole);
-                }
-            }
-        }
-
-        return [.. roles];
+        return [.. groupRoleMappings
+            .Select(m => m.Role)
+            .Where(role => role is not null)
+            .DistinctBy(role => role.Id)];
     }
 
     /// <summary>
@@ -137,6 +145,8 @@ public class PermissionService : IPermissionService
     /// <returns><c>true</c> if the permission matches the pattern; otherwise <c>false</c>.</returns>
     public bool MatchesPermission(string permission, string pattern)
     {
+        _logger.LogInformation("Checking if permission string matches a pattern.");
+
         if (string.IsNullOrEmpty(permission) || string.IsNullOrEmpty(pattern))
         {
             return false;

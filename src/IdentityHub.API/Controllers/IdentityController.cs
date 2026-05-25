@@ -25,42 +25,21 @@ public class IdentityController : ControllerBase
         _logger = logger;
     }
 
-    /// <summary>
-    /// Get current authenticated user's identity context
-    /// </summary>
-    /// <returns>User context with identity information</returns>
     [HttpGet("me")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetCurrentUser()
     {
-        try
+        var userContext = await _userContextService.GetUserContext(User);
+
+        if (!_userContextService.ValidateUserContext(userContext))
         {
-            var userContext = await _userContextService.GetUserContext(User);
-
-            if (!_userContextService.ValidateUserContext(userContext))
-            {
-                _logger.LogWarning("Invalid user context for user {UserId}", userContext.UserId);
-                return Unauthorized(new { error = "Invalid user context" });
-            }
-
-            _logger.LogInformation("User {UserId} from tenant {TenantId} retrieved their identity",
-                userContext.UserId, userContext.TenantId);
-
-            return Ok(_mapper.Map<UserResponse>(userContext));
+            return Unauthorized(new { error = "Invalid user context" });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving user context");
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                new { error = "An error occurred while retrieving user context" });
-        }
+
+        return Ok(_mapper.Map<UserResponse>(userContext));
     }
 
-    /// <summary>
-    /// Health check endpoint to verify authentication is working
-    /// </summary>
-    /// <returns>Simple status message</returns>
     [HttpGet("status")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

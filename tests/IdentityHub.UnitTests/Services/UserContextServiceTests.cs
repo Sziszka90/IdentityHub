@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading;
 using System.Threading.Tasks;
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Application.Services;
@@ -59,9 +60,9 @@ public class UserContextServiceTests
     public async Task GetUserContext_ReturnsAuthenticatedContext_WithCorrectClaims()
     {
         _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync(It.IsAny<string>())).ReturnsAsync(new List<string>());
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role>());
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role>());
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
 
         var principal = AuthenticatedPrincipal(
             ("tid", "tenant-abc"),
@@ -82,9 +83,9 @@ public class UserContextServiceTests
     public async Task GetUserContext_FallsBackToNameIdentifier_WhenOidMissing()
     {
         _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync(It.IsAny<string>())).ReturnsAsync(new List<string>());
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role>());
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role>());
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
 
         var principal = AuthenticatedPrincipal(
             ("tid", "tenant-abc"),
@@ -101,10 +102,10 @@ public class UserContextServiceTests
     {
         _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
         var adminRole = new Role { Name = "Admin" };
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("user-123")).ReturnsAsync(new List<string> { "grp-admins" });
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.Is<List<string>>(l => l.Contains("grp-admins"))))
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("user-123", It.IsAny<CancellationToken>())).ReturnsAsync(new List<string> { "grp-admins" });
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.Is<List<string>>(l => l.Contains("grp-admins")), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Role> { adminRole });
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>()))
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<string> { "users.read", "users.write" });
 
         var principal = AuthenticatedPrincipal(
@@ -123,9 +124,9 @@ public class UserContextServiceTests
     {
         _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
         var groupRole = new Role { Name = "GroupRole" };
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync(It.IsAny<string>())).ReturnsAsync(new List<string>());
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role> { groupRole });
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role> { groupRole });
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
 
         var principal = AuthenticatedPrincipal(
             ("tid", "tenant-abc"),
@@ -143,9 +144,9 @@ public class UserContextServiceTests
     {
         _tenantContextServiceMock.Setup(t => t.GetTenantContext()).Returns(new TenantContext { TenantId = "tenant-abc" });
         var adminRole = new Role { Name = "Admin" };
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync(It.IsAny<string>())).ReturnsAsync(new List<string>());
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role> { adminRole });
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role> { adminRole });
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
 
         // "Admin" appears in both token roles and group-derived roles
         var principal = AuthenticatedPrincipal(

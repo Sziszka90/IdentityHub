@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using IdentityHub.API.Constants;
 using IdentityHub.Application.Interfaces;
+using IdentityHub.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 
 namespace IdentityHub.API.Authorization
@@ -15,7 +17,7 @@ namespace IdentityHub.API.Authorization
 
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, RequirePermissionRequirement requirement)
         {
-            var userId = context.User.FindFirstValue("http://schemas.microsoft.com/identity/claims/objectidentifier");
+            var userId = context.User.FindFirstValue(ClaimConstants.OBJECT_ID);
             if (string.IsNullOrEmpty(userId))
             {
                 context.Fail();
@@ -23,7 +25,8 @@ namespace IdentityHub.API.Authorization
             }
 
             var userPermissions = await _userService.GetUserPermissionsAsync(userId);
-            if (_userService is IdentityHub.Application.Services.UserService concreteUserService &&
+
+            if (_userService is UserService concreteUserService &&
                 concreteUserService.HasPermission(userPermissions, requirement.Permission))
             {
                 context.Succeed(requirement);

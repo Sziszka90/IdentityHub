@@ -107,16 +107,6 @@ public class RolesRepository : IRolesRepository
         return true;
     }
 
-    public async Task<Dictionary<string, Role>> GetGroupToRoleDictionaryAsync(CancellationToken ct = default)
-    {
-        var mappings = await _db.GroupRoleMappings
-            .Include(g => g.Role)
-            .AsNoTracking()
-            .ToListAsync(ct);
-
-        return mappings.ToDictionary(m => m.GroupId.ToString(), m => m.Role);
-    }
-
     public async Task<List<Role>> GetRolesByIdsAsync(IEnumerable<Guid> roleIds, CancellationToken ct = default)
     {
         return await _db.Roles

@@ -38,15 +38,17 @@ public class RoleService : IRoleService
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
     /// <returns>List of <see cref="Role"/> entities assigned to the user via direct group membership.</returns>
-    public async Task<List<Role>> GetDirectRolesForUserAsync(string userId)
+    public async Task<List<Role>> GetDirectRolesForUserAsync(string userId, CancellationToken cancellationToken = default)
     {
-        var groupIds = await _graphService.GetUserDirectGroupIdsAsync(userId);
+        var groupIds = await _graphService.GetUserDirectGroupIdsAsync(userId, cancellationToken);
+
         if (groupIds == null || groupIds.Count == 0)
         {
             return [];
         }
 
-        var mappings = await _rolesRepository.GetGroupRoleMappingsByGroupIdsAsync(groupIds);
+        var mappings = await _rolesRepository.GetGroupRoleMappingsByGroupIdsAsync(groupIds, cancellationToken);
+
         var roleIds = mappings
             .Select(m => m.RoleId)
             .Distinct()
@@ -67,7 +69,7 @@ public class RoleService : IRoleService
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
     /// <returns>List of <see cref="Role"/> entities assigned to the user via transitive group membership.</returns>
-    public async Task<List<Role>> GetTransitiveRolesForUserAsync(string userId)
+    public async Task<List<Role>> GetTransitiveRolesForUserAsync(string userId, CancellationToken cancellationToken = default)
     {
         var groupIds = await _graphService.GetUserTransitiveGroupIdsAsync(userId);
         if (groupIds == null || groupIds.Count == 0)
@@ -141,7 +143,8 @@ public class RoleService : IRoleService
 
         if (permissions.Count > 0)
         {
-            await _permissionsRepository.SetRolePermissionsAsync(role.Name, permissions, ct);
+            var permissionIds = await ResolvePermissionIdsAsync(permissions, ct);
+            await _permissionsRepository.SetRolePermissionsAsync(role.Id, permissionIds, ct);
         }
 
         return await _rolesRepository.GetRoleByNameAsync(role.Name, ct);
@@ -165,7 +168,8 @@ public class RoleService : IRoleService
 
         role.Description = description;
         await _rolesRepository.UpdateRoleAsync(role, ct);
-        await _permissionsRepository.SetRolePermissionsAsync(role.Name, permissions, ct);
+        var permissionIds = await ResolvePermissionIdsAsync(permissions, ct);
+        await _permissionsRepository.SetRolePermissionsAsync(role.Id, permissionIds, ct);
 
         return await _rolesRepository.GetRoleByIdAsync(roleId, ct);
     }
@@ -312,5 +316,23 @@ public class RoleService : IRoleService
             _logger.LogWarning("Graph group {GroupId} was not found while resolving role mapping {MappingId}", mapping.GroupId, mapping.Id);
             return null;
         }
+    }
+
+    private async Task<List<Guid>> ResolvePermissionIdsAsync(IEnumerable<string> permissionNames, CancellationToken ct)
+    {
+        var permissionIds = new List<Guid>();
+
+        foreach (var permissionName in permissionNames)
+        {
+            var permission = await _permissionsRepository.GetPermissionByNameAsync(permissionName, ct);
+            if (permission is null)
+            {
+                permission = await _permissionsRepository.CreatePermissionAsync(new IdentityHub.Domain.Entities.Permission { Name = permissionName }, ct);
+            }
+
+            permissionIds.Add(permission.Id);
+        }
+
+        return permissionIds;
     }
 }

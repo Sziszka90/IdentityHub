@@ -20,6 +20,7 @@ public class TenantContextValidationMiddleware
     public async Task InvokeAsync(HttpContext context, ITenantContextService tenantContextService)
     {
         var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
+
         // Exclude endpoints that do not require an explicit tenant header.
         if (path.StartsWith("/swagger") ||
             path.StartsWith("/health") ||

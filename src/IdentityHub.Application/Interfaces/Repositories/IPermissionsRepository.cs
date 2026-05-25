@@ -49,29 +49,19 @@ public interface IPermissionsRepository
     Task<bool> DeletePermissionAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
-    /// Get all permission names assigned to a role.
-    /// The result contains only the permission names (not full entities).
+    /// Replace the full permission set for a role.
     /// </summary>
-    /// <param name="roleName">Role name to query permissions for.</param>
+    /// <param name="roleId">Target role ID.</param>
+    /// <param name="permissionIds">List of permission IDs to assign to the role.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of permission names associated with the role.</returns>
-    Task<List<string>> GetPermissionsForRoleAsync(string roleName, CancellationToken ct = default);
-
-    /// <summary>
-    /// Replace the full permission set for a role. Any permission names that do not
-    /// exist will be created.
-    /// </summary>
-    /// <param name="roleName">Target role name.</param>
-    /// <param name="permissions">List of permission names to assign to the role.</param>
-    /// <param name="ct">Cancellation token.</param>
-    Task SetRolePermissionsAsync(string roleName, List<string> permissions, CancellationToken ct = default);
+    Task SetRolePermissionsAsync(Guid roleId, List<Guid> permissionIds, CancellationToken ct = default);
 
     /// <summary>
     /// Returns a materialized dictionary of all roles to their permission name lists.
     /// Useful for bulk lookups and caching scenarios.
     /// </summary>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>Dictionary where the key is the role name and the value is the list of permission names.</returns>
-    Task<Dictionary<string, List<string>>> GetAllRolePermissionsAsync(CancellationToken ct = default);
+    /// <returns>Dictionary where the key is the role id and the value is the list of permission names.</returns>
+    Task<Dictionary<Guid, List<string>>> GetAllRolePermissionsAsync(CancellationToken ct = default);
 
 }

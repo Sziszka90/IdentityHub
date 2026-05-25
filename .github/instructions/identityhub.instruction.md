@@ -6,7 +6,6 @@
 
 **IdentityHub** is an enterprise-grade authentication and authorization service that sits between Azure Entra ID and your applications, providing tenant-aware identity management, role-based access control (RBAC), and permission-based authorization.
 
-
 ## 🎯 Core Purpose
 
 IdentityHub answers one critical question:
@@ -19,21 +18,26 @@ It acts as an **integration and decision layer** on top of Azure Entra ID, provi
 - ✅ Role and permission-based authorization
 - ✅ Multi-tenant identity management
 - ✅ Graph API integration for user and group data
+- ✅ Configurable client-side caching with memory or Redis-backed distributed cache
 - ✅ Audit logging and compliance
 
 ---
-
 
 # Architecture
 
 ```
 ┌─────────────┐
 │ Application │
-└──────┬──────┘
-    │
-    ▼
+└──────-┬─────┘
+        │
+        ▼
 ┌──────────────────────────────┐
-│ IdentityHubClient NuGet pkg  │ ← Used by Application to call IdentityHub.API
+│ IdentityHub.Client NuGet pkg │ ← Typed client + authorization integration
+└────────────┬─────────────────┘
+             │
+             ▼
+┌──────────────────────────────┐
+│ IdentityHub.Contracts NuGet  │ ← Shared public DTOs used by client and API
 └────────────┬─────────────────┘
           │ "Can user X do Y?"
           ▼
@@ -49,70 +53,55 @@ It acts as an **integration and decision layer** on top of Azure Entra ID, provi
 ```
 
 **What IdentityHub IS:**
+
 - An authorization decision service
 - A Graph API integration layer
 - A tenant-aware permission resolver
-- A NuGet client package (`IdentityHubClient`) for easy integration with .NET applications
+- A set of NuGet packages for easy .NET integration:
+    - `IdentityHub.Client` for typed API calls and permission-based authorization
+    - `IdentityHub.Contracts` for shared DTOs and response/request contracts
 
 **What IdentityHub is NOT:**
+
 - An identity provider (Entra ID handles that)
 - A custom login system
 - A password manager
 - A replacement for Azure AD
 
-**How the Client Package Works:**
-- The `IdentityHubClient` NuGet package is added to your application.
-- It provides a strongly-typed HTTP client and interface (`IIdentityHubClient`) to fetch roles, permissions, and group mappings from the central IdentityHub.API.
-- Register it in your app with `services.AddIdentityHubClient(configuration);`.
-- The application uses this client to answer authorization questions ("Can user X do Y?") by querying IdentityHub.API, which in turn integrates with Entra ID and Graph API.
+**How the NuGet Packages Work:**
 
----
+- The `IdentityHub.Client` NuGet package is added to your application to provide the strongly-typed HTTP client and authorization integration.
+- The `IdentityHub.Contracts` NuGet package contains the shared DTOs used by both the client package and the API surface.
+- Register the client in your app with `services.AddIdentityHubClient(configuration);`.
+- Optionally enable permission attributes in the consuming application with `services.AddIdentityHubAuthorization();`.
+- The client supports configurable caching for authorization config and permission checks:
+    - `Memory` cache for single-instance or local development scenarios
+    - `Distributed` cache backed by Redis for multi-instance deployments
+- The application uses the client to answer authorization questions ("Can user X do Y?") by querying IdentityHub.API, which in turn integrates with Entra ID and Graph API.
 
-# Features & Roadmap
+**Example Project for Client Testing:**
 
-## Phase 1: Core Identity & Authorization (MVP)
-- Azure Entra ID login via OIDC
-- JWT token validation and claims extraction
-- Token-to-user context mapping
-- Secure authentication pipeline
-- Fetch user profiles from Microsoft Graph
-- Retrieve group memberships
-- Access assigned app roles
-- Intelligent caching with short TTL for performance
-- **Role-Based Access Control (RBAC)**: Admin, User, Viewer, etc.
-- **Group-to-Role Mapping**: Entra ID groups → application roles
-- Clean separation between authentication and authorization logic
-- Secured REST endpoints
-- Proper HTTP status codes (401 Unauthorized vs 403 Forbidden)
-- Clear permission boundaries
-- Request validation and error handling
-- Audit logging
-
-## Phase 2: Enterprise-Grade Features
-- Multi-Tenant Awareness
-- App Roles + Group-Based Authorization
-- Permission-Based Access (Fine-Grained)
-- Admin API
-
-## Phase 3: Advanced & Differentiating Features
-- Managed Identity & Secretless Authentication
-- Event-Driven Identity Synchronization
-- Admin UI (Angular)
+- The solution includes `IdentityHub.ExampleProject` as a small consumer app for validating the `IdentityHub.Client` NuGet package.
+- It includes a mocked IdentityHub endpoint at `mock-identityhub/api/authorization/check` so the client can be exercised without a live IdentityHub.API dependency.
+- The example controller exposes a fixed endpoint and cache diagnostics so you can test `RequirePermissionAttribute`, client configuration, and cache behavior end to end.
+- The mocked authorization check accepts a simple bearer token pattern during local testing and returns deterministic allow/deny responses for the client integration flow.
 
 ---
 
 # Technology Stack
 
-| Layer              | Technology                   |
-| ------------------ | ---------------------------- |
-| **Backend**        | .NET                         |
-| **Authentication** | Azure Entra ID (OIDC, JWT)   |
-| **Identity Data**  | Microsoft Graph API          |
-| **Authorization**  | RBAC, Group & Permission     |
-| **Data Storage**   | Azure Cosmos DB / SQL Server |
-| **Logging**        | Azure Application Insights   |
-| **Identity**       | Azure Managed Identity       |
-| **Frontend**       | Angular (Phase 3)            |
+| Layer              | Technology                                |
+| ------------------ | ----------------------------------------- |
+| **Backend**        | .NET                                      |
+| **Authentication** | Azure Entra ID (OIDC, JWT)                |
+| **Identity Data**  | Microsoft Graph API                       |
+| **Authorization**  | RBAC, Group & Permission                  |
+| **Data Storage**   | SQL Server                                |
+| **Client Caching** | IMemoryCache / Redis                      |
+| **Packages**       | IdentityHub.Client, IdentityHub.Contracts |
+| **Logging**        | Azure Application Insights                |
+| **Identity**       | Azure Managed Identity                    |
+| **Frontend**       | Angular                                   |
 
 ---
 
@@ -233,10 +222,10 @@ public class Permission
 | 1   | users.read     | View users        | 2024-01-01 00:00:00 |
 | 2   | users.invite   | Invite users      | 2024-01-01 00:00:00 |
 | 3   | profile.update | Update profile    | 2024-01-01 00:00:00 |
-| 4   | users.*       | All user actions  | 2024-01-01 00:00:00 |
-| 5   | groups.*      | All group actions | 2024-01-01 00:00:00 |
-| 6   | roles.*       | All role actions  | 2024-01-01 00:00:00 |
-| 7   | audit.*       | All audit actions | 2024-01-01 00:00:00 |
+| 4   | users.\*       | All user actions  | 2024-01-01 00:00:00 |
+| 5   | groups.\*      | All group actions | 2024-01-01 00:00:00 |
+| 6   | roles.\*       | All role actions  | 2024-01-01 00:00:00 |
+| 7   | audit.\*       | All audit actions | 2024-01-01 00:00:00 |
 | 8   | tickets.read   | View tickets      | 2024-01-01 00:00:00 |
 | 9   | tickets.update | Update tickets    | 2024-01-01 00:00:00 |
 
@@ -246,10 +235,10 @@ Each `Permission` is linked to one or more roles via `RolePermission`. For examp
 
 | Role         | Permission     |
 | ------------ | -------------- |
-| Admin        | users.*       |
-| Admin        | groups.*      |
-| Admin        | roles.*       |
-| Admin        | audit.*       |
+| Admin        | users.\*       |
+| Admin        | groups.\*      |
+| Admin        | roles.\*       |
+| Admin        | audit.\*       |
 | HRManager    | users.read     |
 | HRManager    | users.invite   |
 | HRManager    | profile.update |
@@ -258,5 +247,3 @@ Each `Permission` is linked to one or more roles via `RolePermission`. For examp
 | SupportAgent | users.read     |
 
 ---
-
-

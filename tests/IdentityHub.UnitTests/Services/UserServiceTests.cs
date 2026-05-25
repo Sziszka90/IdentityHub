@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Application.Services;
@@ -50,7 +51,7 @@ public class UserServiceTests
     public async Task GetUserPermissionsAsync_ThrowsKeyNotFoundException_WhenUserNotFound()
     {
         SetupTenantContext();
-        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync((User?)null);
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() => CreateService().GetUserPermissionsAsync("u1"));
     }
@@ -59,11 +60,11 @@ public class UserServiceTests
     public async Task GetUserPermissionsAsync_ReturnsDto_WithResolvedPermissions()
     {
         SetupTenantContext();
-        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync(new User { Id = "u1", Mail = "u@contoso.com", DisplayName = "Alice" });
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1")).ReturnsAsync(["grp-admins"]);
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(new User { Id = "u1", Mail = "u@contoso.com", DisplayName = "Alice" });
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(["grp-admins"]);
         var adminRole = new Role { Name = "Admin" };
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role> { adminRole });
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string> { "users.read" });
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role> { adminRole });
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string> { "users.read" });
 
         var result = await CreateService().GetUserPermissionsAsync("u1");
 
@@ -106,11 +107,11 @@ public class UserServiceTests
         SetupTenantContext();
         _userTenantMappingsRepositoryMock.Setup(r => r.GetAllUserTenantMappingsAsync(default))
             .ReturnsAsync([new UserTenantMapping { UserId = "u1", TenantId = "tenant-123" }]);
-        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync(new User { Id = "u1", Mail = "a@b.com", DisplayName = "Alice" });
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1")).ReturnsAsync(["grp-admins"]);
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(new User { Id = "u1", Mail = "a@b.com", DisplayName = "Alice" });
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(["grp-admins"]);
         var adminRole = new Role { Name = "Admin" };
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role> { adminRole });
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string> { "users.read" });
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role> { adminRole });
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string> { "users.read" });
 
         var result = await CreateService().GetUsersWithPermissionsAsync();
 
@@ -138,11 +139,11 @@ public class UserServiceTests
     public async Task UserHasPermissionAsync_ReturnsTrue_WhenUserHasPermission()
     {
         SetupTenantContext();
-        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync(new User { Id = "u1" });
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1")).ReturnsAsync([]);
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(new User { Id = "u1" });
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync([]);
         var adminRole = new Role { Name = "Admin" };
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role> { adminRole });
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string> { "users.read", "users.write" });
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role> { adminRole });
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string> { "users.read", "users.write" });
 
         var result = await CreateService().UserHasPermissionAsync("u1", "users.read");
 
@@ -153,10 +154,10 @@ public class UserServiceTests
     public async Task UserHasPermissionAsync_ReturnsFalse_WhenUserDoesNotHavePermission()
     {
         SetupTenantContext();
-        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync(new User { Id = "u1" });
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1")).ReturnsAsync([]);
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role>());
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(new User { Id = "u1" });
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role>());
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
 
         var result = await CreateService().UserHasPermissionAsync("u1", "admin.delete");
 
@@ -185,7 +186,7 @@ public class UserServiceTests
     public async Task AssignRolesToUserAsync_ReturnsNull_WhenUserNotFound()
     {
         SetupTenantContext();
-        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync((User?)null);
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         var result = await CreateService().AssignRolesToUserAsync("u1", [Guid.NewGuid().ToString()]);
 
@@ -200,12 +201,12 @@ public class UserServiceTests
         var groupId = Guid.NewGuid();
         var mapping = new GroupRoleMapping { GroupId = groupId, RoleId = roleId };
 
-        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync(new User { Id = "u1", Mail = "u@c.com" });
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(new User { Id = "u1", Mail = "u@c.com" });
         _roleServiceMock.Setup(r => r.GetGroupMappingByRoleIdAsync(roleId, default)).ReturnsAsync(mapping);
-        _graphServiceMock.Setup(g => g.AddUserToGroupsAsync("u1", It.IsAny<List<string>>())).Returns(Task.CompletedTask);
+        _graphServiceMock.Setup(g => g.AddUserToGroupsAsync("u1", It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var adminRole2 = new Role { Name = "Admin" };
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role> { adminRole2 });
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string> { "users.read" });
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role> { adminRole2 });
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string> { "users.read" });
 
         var result = await CreateService().AssignRolesToUserAsync("u1", [roleId.ToString()]);
 
@@ -229,7 +230,7 @@ public class UserServiceTests
     public async Task RemoveRolesFromUserAsync_ReturnsNull_WhenUserNotFound()
     {
         SetupTenantContext();
-        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync((User?)null);
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         var result = await CreateService().RemoveRolesFromUserAsync("u1", [Guid.NewGuid().ToString()]);
 
@@ -244,12 +245,12 @@ public class UserServiceTests
         var groupId = Guid.NewGuid();
         var mapping = new GroupRoleMapping { GroupId = groupId, RoleId = roleId };
 
-        _graphServiceMock.Setup(g => g.GetUserAsync("u1")).ReturnsAsync(new User { Id = "u1", Mail = "u@c.com" });
+        _graphServiceMock.Setup(g => g.GetUserAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(new User { Id = "u1", Mail = "u@c.com" });
         _roleServiceMock.Setup(r => r.GetGroupMappingByRoleIdAsync(roleId, default)).ReturnsAsync(mapping);
-        _graphServiceMock.Setup(g => g.RemoveUserFromGroupsAsync("u1", It.IsAny<List<string>>())).Returns(Task.CompletedTask);
-        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1")).ReturnsAsync([]);
-        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<Role>());
-        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>())).ReturnsAsync(new List<string>());
+        _graphServiceMock.Setup(g => g.RemoveUserFromGroupsAsync("u1", It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _graphServiceMock.Setup(g => g.GetUserTransitiveGroupIdsAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _permissionServiceMock.Setup(p => p.MapGroupsToRolesAsync(It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Role>());
+        _permissionServiceMock.Setup(p => p.ResolvePermissionsAsync(It.IsAny<IEnumerable<Role>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
 
         var result = await CreateService().RemoveRolesFromUserAsync("u1", [roleId.ToString()]);
 
@@ -265,7 +266,7 @@ public class UserServiceTests
     [Fact]
     public async Task CreateUserWithRolesAsync_ReturnsNull_WhenGraphCreationFails()
     {
-        _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>()))!.ReturnsAsync((User?)null);
+        _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))!.ReturnsAsync((User?)null);
 
         var result = await CreateService().CreateUserWithRolesAsync(new User { UserPrincipalName = "test@c.com" }, []);
 
@@ -276,7 +277,7 @@ public class UserServiceTests
     public async Task CreateUserWithRolesAsync_ReturnsCreatedUser_WithNoRoles()
     {
         var user = new User { Id = "u-new", UserPrincipalName = "new@c.com" };
-        _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>())).ReturnsAsync(user);
+        _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>(), It.IsAny<CancellationToken>())).ReturnsAsync(user);
         _userTenantMappingsRepositoryMock.Setup(r => r.UpsertUserTenantMappingAsync("u-new", default))
             .ReturnsAsync(new UserTenantMapping { UserId = "u-new", TenantId = "tenant-123" });
 
@@ -295,15 +296,15 @@ public class UserServiceTests
         var user = new User { Id = "u-new", UserPrincipalName = "new@c.com" };
         var mapping = new GroupRoleMapping { GroupId = groupId, RoleId = roleId };
 
-        _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>())).ReturnsAsync(user);
+        _graphServiceMock.Setup(g => g.CreateUserAsync(It.IsAny<User>(), It.IsAny<CancellationToken>())).ReturnsAsync(user);
         _userTenantMappingsRepositoryMock.Setup(r => r.UpsertUserTenantMappingAsync("u-new", default))
             .ReturnsAsync(new UserTenantMapping { UserId = "u-new", TenantId = "tenant-123" });
         _roleServiceMock.Setup(r => r.GetGroupMappingByRoleIdAsync(roleId, default)).ReturnsAsync(mapping);
-        _graphServiceMock.Setup(g => g.AddUserToGroupsAsync("u-new", It.IsAny<List<string>>())).Returns(Task.CompletedTask);
+        _graphServiceMock.Setup(g => g.AddUserToGroupsAsync("u-new", It.IsAny<List<string>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var result = await CreateService().CreateUserWithRolesAsync(user, [roleId.ToString()]);
 
         Assert.NotNull(result);
-        _graphServiceMock.Verify(g => g.AddUserToGroupsAsync("u-new", It.Is<List<string>>(l => l.Contains(groupId.ToString()))), Times.Once);
+        _graphServiceMock.Verify(g => g.AddUserToGroupsAsync("u-new", It.Is<List<string>>(l => l.Contains(groupId.ToString())), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

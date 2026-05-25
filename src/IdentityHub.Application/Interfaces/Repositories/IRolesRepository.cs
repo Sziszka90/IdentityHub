@@ -25,9 +25,9 @@ public interface IRolesRepository
     Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
-    /// Retrieves a role by its unique name.
+    /// Retrieves a role by its name.
     /// </summary>
-    /// <param name="name">Role name.</param>
+    /// <param name="name">Name of the role.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The matching <see cref="Role"/> or <c>null</c> if not found.</returns>
     Task<Role?> GetRoleByNameAsync(string name, CancellationToken ct = default);
@@ -104,13 +104,6 @@ public interface IRolesRepository
     /// <param name="ct">Cancellation token.</param>
     /// <returns><c>true</c> if the mapping was deleted; otherwise <c>false</c>.</returns>
     Task<bool> DeleteGroupRoleMappingAsync(Guid id, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns the group-to-role dictionary (groupName → roleName) for efficient lookups.
-    /// </summary>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>Dictionary mapping group claim values to roles.</returns>
-    Task<Dictionary<string, Role>> GetGroupToRoleDictionaryAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Retrieves roles by a list of role IDs.

@@ -4,9 +4,6 @@ using IdentityHub.Infrastructure.Seeding;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddJsonFile("appsettings.Authorization.json", optional: true, reloadOnChange: true);
-
-// Add appsettings.Development.json if in Development environment
 if (builder.Environment.IsDevelopment())
 {
     builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
@@ -51,9 +48,7 @@ app.UseGlobalExceptionHandler();
 
 app.UseCors("AllowAll");
 
-
 app.UseAuthentication();
-// Isolation must run first to populate TenantContext, then validation can check it
 app.UseTenantIsolation();
 app.UseMiddleware<TenantContextValidationMiddleware>();
 app.UseAuthorization();

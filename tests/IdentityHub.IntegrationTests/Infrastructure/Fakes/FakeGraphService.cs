@@ -1,3 +1,4 @@
+using System.Threading;
 using IdentityHub.Application.Interfaces;
 using Microsoft.Graph.Models;
 
@@ -24,20 +25,20 @@ public class FakeGraphService : IGraphService
     private readonly Dictionary<string, List<string>> _userGroups = new();
     private readonly Dictionary<string, List<string>> _groupMembers = new();
 
-    public Task<List<User>> GetUsersAsync(int top = 100, int skip = 0)
+    public Task<List<User>> GetUsersAsync(int top = 100, int skip = 0, CancellationToken cancellationToken = default)
         => Task.FromResult(_users.Skip(skip).Take(top).ToList());
 
-    public Task<User?> GetUserAsync(string userId)
+    public Task<User?> GetUserAsync(string userId, CancellationToken cancellationToken = default)
         => Task.FromResult(_users.FirstOrDefault(u => u.Id == userId));
 
-    public Task<User> CreateUserAsync(User user)
+    public Task<User> CreateUserAsync(User user, CancellationToken cancellationToken = default)
     {
         user.Id ??= Guid.NewGuid().ToString();
         _users.Add(user);
         return Task.FromResult(user);
     }
 
-    public Task<User> UpdateUserAsync(User user, string userId)
+    public Task<User> UpdateUserAsync(User user, string userId, CancellationToken cancellationToken = default)
     {
         var existing = _users.FirstOrDefault(u => u.Id == userId);
         if (existing is not null)
@@ -48,22 +49,22 @@ public class FakeGraphService : IGraphService
         return Task.FromResult(user);
     }
 
-    public Task DeleteUserAsync(string userId)
+    public Task DeleteUserAsync(string userId, CancellationToken cancellationToken = default)
     {
         _users.RemoveAll(u => u.Id == userId);
         return Task.CompletedTask;
     }
 
-    public Task<List<string>> GetUserDirectGroupIdsAsync(string userId)
+    public Task<List<string>> GetUserDirectGroupIdsAsync(string userId, CancellationToken cancellationToken = default)
         => Task.FromResult(_userGroups.TryGetValue(userId, out var groups) ? groups : new List<string>());
 
-    public Task<List<string>> GetUserTransitiveGroupIdsAsync(string userId)
+    public Task<List<string>> GetUserTransitiveGroupIdsAsync(string userId, CancellationToken cancellationToken = default)
         => Task.FromResult(_userGroups.TryGetValue(userId, out var groups) ? groups : new List<string>());
 
-    public Task<Group?> GetGroupByIdAsync(string groupId)
+    public Task<Group?> GetGroupByIdAsync(string groupId, CancellationToken cancellationToken = default)
         => Task.FromResult(_groups.FirstOrDefault(g => g.Id == groupId));
 
-    public Task<List<Group>> QueryGroupsAsync(string? displayName = null)
+    public Task<List<Group>> QueryGroupsAsync(string? displayName = null, CancellationToken cancellationToken = default)
     {
         var result = displayName is null
             ? _groups
@@ -71,14 +72,14 @@ public class FakeGraphService : IGraphService
         return Task.FromResult(result);
     }
 
-    public Task<Group> CreateGroupAsync(string displayName, string mailNickname)
+    public Task<Group> CreateGroupAsync(string displayName, string mailNickname, CancellationToken cancellationToken = default)
     {
         var group = new Group { Id = Guid.NewGuid().ToString(), DisplayName = displayName, MailNickname = mailNickname };
         _groups.Add(group);
         return Task.FromResult(group);
     }
 
-    public Task<Group> UpdateGroupAsync(string groupId, string displayName, string mailNickname)
+    public Task<Group> UpdateGroupAsync(string groupId, string displayName, string mailNickname, CancellationToken cancellationToken = default)
     {
         var group = _groups.FirstOrDefault(g => g.Id == groupId);
         if (group is not null)
@@ -89,16 +90,16 @@ public class FakeGraphService : IGraphService
         return Task.FromResult(group ?? new Group { Id = groupId, DisplayName = displayName });
     }
 
-    public Task DeleteGroupAsync(string groupId)
+    public Task DeleteGroupAsync(string groupId, CancellationToken cancellationToken = default)
     {
         _groups.RemoveAll(g => g.Id == groupId);
         return Task.CompletedTask;
     }
 
-    public Task<List<string>> GetGroupMembersAsync(string groupId)
+    public Task<List<string>> GetGroupMembersAsync(string groupId, CancellationToken cancellationToken = default)
         => Task.FromResult(_groupMembers.TryGetValue(groupId, out var members) ? members : new List<string>());
 
-    public Task AddUserToGroupsAsync(string userId, List<string> groupIds)
+    public Task AddUserToGroupsAsync(string userId, List<string> groupIds, CancellationToken cancellationToken = default)
     {
         if (!_userGroups.ContainsKey(userId))
             _userGroups[userId] = new List<string>();
@@ -114,7 +115,7 @@ public class FakeGraphService : IGraphService
         return Task.CompletedTask;
     }
 
-    public Task RemoveUserFromGroupsAsync(string userId, List<string> groupIds)
+    public Task RemoveUserFromGroupsAsync(string userId, List<string> groupIds, CancellationToken cancellationToken = default)
     {
         if (_userGroups.ContainsKey(userId))
             _userGroups[userId].RemoveAll(groupIds.Contains);
@@ -127,5 +128,5 @@ public class FakeGraphService : IGraphService
         return Task.CompletedTask;
     }
 
-    public Task<bool> IsAvailableAsync() => Task.FromResult(true);
+    public Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
 }

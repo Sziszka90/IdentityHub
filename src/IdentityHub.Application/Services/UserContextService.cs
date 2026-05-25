@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Threading;
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Domain.Models;
 using Microsoft.Extensions.Logging;
@@ -31,8 +32,9 @@ public class UserContextService : IUserContextService
     /// Extracts user context (identity, roles, permissions) from a claims principal.
     /// </summary>
     /// <param name="claimsPrincipal">The authenticated user's claims principal.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
     /// <returns>A populated <see cref="UserContext"/>; <see cref="UserContext.IsAuthenticated"/> is <c>false</c> if authentication failed.</returns>
-    public async Task<UserContext> GetUserContext(ClaimsPrincipal claimsPrincipal)
+    public async Task<UserContext> GetUserContext(ClaimsPrincipal claimsPrincipal, CancellationToken cancellationToken = default)
     {
         if (claimsPrincipal?.Identity?.IsAuthenticated is not true)
         {
@@ -71,13 +73,13 @@ public class UserContextService : IUserContextService
             .Select(c => c.Value)
             .ToList();
 
-        userContext.Groups = await _graphService.GetUserTransitiveGroupIdsAsync(userContext.UserId);
+        userContext.Groups = await _graphService.GetUserTransitiveGroupIdsAsync(userContext.UserId, cancellationToken);
 
-        var rolesFromGroups = await _permissionService.MapGroupsToRolesAsync(userContext.Groups);
+        var rolesFromGroups = await _permissionService.MapGroupsToRolesAsync(userContext.Groups, cancellationToken);
 
         userContext.Roles = [.. rolesFromGroups.Select(r => r.Name).Concat(tokenRoles).Distinct()];
 
-        userContext.Permissions = await _permissionService.ResolvePermissionsAsync(rolesFromGroups);
+        userContext.Permissions = await _permissionService.ResolvePermissionsAsync(rolesFromGroups, cancellationToken);
 
         userContext.Claims = claimsPrincipal.Claims
             .GroupBy(c => c.Type)

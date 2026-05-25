@@ -16,15 +16,17 @@ public interface IPermissionService
     /// Resolves the combined list of permission names for the given role names.
     /// </summary>
     /// <param name="roles">Role names to resolve permissions for.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>Deduplicated list of permission names granted by any of the specified roles.</returns>
-    Task<List<string>> ResolvePermissionsAsync(IEnumerable<Role> roles);
+    Task<List<string>> ResolvePermissionsAsync(IEnumerable<Role> roles, CancellationToken ct = default);
 
     /// <summary>
     /// Maps Entra ID group claim values (names or object IDs) to application role names.
     /// </summary>
     /// <param name="groups">Group claim values from the user's token.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>List of application roles.</returns>
-    Task<List<Role>> MapGroupsToRolesAsync(IEnumerable<string> groups);
+    Task<List<Role>> MapGroupsToRolesAsync(IEnumerable<string> groupIds, CancellationToken ct = default);
 
     /// <summary>
     /// Checks whether a permission string matches a pattern (supports wildcard <c>.*</c>).

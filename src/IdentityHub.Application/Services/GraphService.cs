@@ -36,14 +36,14 @@ public class GraphService : IGraphService
     /// <param name="top">Maximum number of users to return (default: 100).</param>
     /// <param name="skip">Number of users to skip for pagination (default: 0).</param>
     /// <returns>List of users in the tenant.</returns>
-    public async Task<List<User>> GetUsersAsync(int top = 100, int skip = 0)
+    public async Task<List<User>> GetUsersAsync(int top = 100, int skip = 0, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Fetching users from Graph API (top: {Top}, skip: {Skip})", top, skip);
 
             var url = $"https://graph.microsoft.com/v1.0/users?$top={top}&$select=id,displayName,mail,userPrincipalName";
-            var users = await _graphClient.Users.WithUrl(url).GetAsync();
+            var users = await _graphClient.Users.WithUrl(url).GetAsync(null, cancellationToken);
 
             return users?.Value?.ToList() ?? [];
         }
@@ -59,7 +59,7 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
     /// <returns>User object, or throws if not found.</returns>
-    public async Task<User?> GetUserAsync(string userId)
+    public async Task<User?> GetUserAsync(string userId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -79,7 +79,7 @@ public class GraphService : IGraphService
                     "department",
                     "officeLocation"
                 ];
-            });
+            }, cancellationToken);
 
             return user;
         }
@@ -100,13 +100,13 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="user">User object to create.</param>
     /// <returns>The created User object.</returns>
-    public async Task<User> CreateUserAsync(User user)
+    public async Task<User> CreateUserAsync(User user, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Creating user {UserPrincipalName} in Graph API", user.UserPrincipalName);
 
-            var createdUser = await _graphClient.Users.PostAsync(user);
+            var createdUser = await _graphClient.Users.PostAsync(user, null, cancellationToken);
             if (createdUser == null)
             {
                 _logger.LogError("Graph API returned null when creating user {UserPrincipalName}", user.UserPrincipalName);
@@ -127,22 +127,22 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="user">User object with updated fields (must have <see cref="User.Id"/> set).</param>
     /// <returns>The updated User object.</returns>
-    public async Task<User> UpdateUserAsync(User user, string userId)
+    public async Task<User> UpdateUserAsync(User user, string userId, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Updating user {UserId} in Graph API", userId);
 
-            var existingUser = await _graphClient.Users[userId].GetAsync();
+            var existingUser = await _graphClient.Users[userId].GetAsync(null, cancellationToken);
             if (existingUser == null)
             {
                 _logger.LogWarning("User {UserId} does not exist in Graph API", userId);
                 throw new KeyNotFoundException($"User with ID '{userId}' does not exist in Microsoft Graph.");
             }
 
-            _ = await _graphClient.Users[userId].PatchAsync(user);
+            _ = await _graphClient.Users[userId].PatchAsync(user, null, cancellationToken);
 
-            var fetchedUser = await _graphClient.Users[userId].GetAsync();
+            var fetchedUser = await _graphClient.Users[userId].GetAsync(null, cancellationToken);
             if (fetchedUser == null)
             {
                 _logger.LogError("Graph API returned null after updating user {UserId}", userId);
@@ -162,14 +162,14 @@ public class GraphService : IGraphService
     /// Delete a user from Microsoft Graph.
     /// </summary>
     /// <param name="userId">ID of the user to delete.</param>
-    public async Task DeleteUserAsync(string userId)
+    public async Task DeleteUserAsync(string userId, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Deleting user {UserId} from Graph API", userId);
-            await _graphClient.Users[userId].DeleteAsync();
+            await _graphClient.Users[userId].DeleteAsync(null, cancellationToken);
 
-            var user = await _graphClient.Users[userId].GetAsync();
+            var user = await _graphClient.Users[userId].GetAsync(null, cancellationToken);
             if (user is not null)
             {
                 _logger.LogWarning("User {UserId} still exists after deletion attempt. This may be due to Graph API propagation delay or soft-delete.", userId);
@@ -195,14 +195,14 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
     /// <returns>List of direct group IDs.</returns>
-    public async Task<List<string>> GetUserDirectGroupIdsAsync(string userId)
+    public async Task<List<string>> GetUserDirectGroupIdsAsync(string userId, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Fetching direct groups for user {UserId} from Graph API", userId);
 
             var groups = new List<string>();
-            var memberOf = await _graphClient.Users[userId].MemberOf.GetAsync();
+            var memberOf = await _graphClient.Users[userId].MemberOf.GetAsync(null, cancellationToken);
 
             if (memberOf?.Value is not null)
             {
@@ -234,14 +234,14 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
     /// <returns>List of transitive group IDs.</returns>
-    public async Task<List<string>> GetUserTransitiveGroupIdsAsync(string userId)
+    public async Task<List<string>> GetUserTransitiveGroupIdsAsync(string userId, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Fetching transitive groups for user {UserId} from Graph API", userId);
 
             var groups = new List<string>();
-            var memberOf = await _graphClient.Users[userId].TransitiveMemberOf.GetAsync();
+            var memberOf = await _graphClient.Users[userId].TransitiveMemberOf.GetAsync(null, cancellationToken);
 
             if (memberOf?.Value is not null)
             {
@@ -277,13 +277,13 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="groupId">The unique identifier of the group.</param>
     /// <returns>Group object, or throws if not found.</returns>
-    public async Task<Group?> GetGroupByIdAsync(string groupId)
+    public async Task<Group?> GetGroupByIdAsync(string groupId, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Fetching group {GroupId} from Graph API", groupId);
 
-            var group = await _graphClient.Groups[groupId].GetAsync();
+            var group = await _graphClient.Groups[groupId].GetAsync(null, cancellationToken);
 
             return group;
         }
@@ -304,7 +304,7 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="displayName">Display name to filter by (optional).</param>
     /// <returns>List of matching groups.</returns>
-    public async Task<List<Group>> QueryGroupsAsync(string? displayName = null)
+    public async Task<List<Group>> QueryGroupsAsync(string? displayName = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -326,7 +326,7 @@ public class GraphService : IGraphService
                 {
                     r.QueryParameters.Filter = $"displayName eq '{displayName.Replace("'", "''")}'";
                 }
-            });
+            }, cancellationToken);
 
             return result?.Value?.ToList() ?? [];
         }
@@ -343,7 +343,7 @@ public class GraphService : IGraphService
     /// <param name="displayName">Display name of the group.</param>
     /// <param name="mailNickname">Mail nickname (unique alias).</param>
     /// <returns>The created Group object.</returns>
-    public async Task<Group> CreateGroupAsync(string displayName, string mailNickname)
+    public async Task<Group> CreateGroupAsync(string displayName, string mailNickname, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -358,7 +358,7 @@ public class GraphService : IGraphService
                 GroupTypes = []
             };
 
-            var createdGroup = await _graphClient.Groups.PostAsync(group);
+            var createdGroup = await _graphClient.Groups.PostAsync(group, null, cancellationToken);
             if (createdGroup == null)
             {
                 _logger.LogError("Graph API returned null when creating group {DisplayName}", displayName);
@@ -381,13 +381,13 @@ public class GraphService : IGraphService
     /// <param name="displayName">New display name.</param>
     /// <param name="mailNickname">New mail nickname.</param>
     /// <returns>The updated Group object.</returns>
-    public async Task<Group> UpdateGroupAsync(string groupId, string displayName, string mailNickname)
+    public async Task<Group> UpdateGroupAsync(string groupId, string displayName, string mailNickname, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Updating group {GroupId} in Graph API", groupId);
 
-            var existingGroup = await _graphClient.Groups[groupId].GetAsync();
+            var existingGroup = await _graphClient.Groups[groupId].GetAsync(null, cancellationToken);
             if (existingGroup == null)
             {
                 _logger.LogWarning("Group {GroupId} does not exist in Graph API", groupId);
@@ -400,9 +400,9 @@ public class GraphService : IGraphService
                 MailNickname = mailNickname
             };
 
-            await _graphClient.Groups[groupId].PatchAsync(group);
+            await _graphClient.Groups[groupId].PatchAsync(group, null, cancellationToken);
 
-            var updatedGroup = await _graphClient.Groups[groupId].GetAsync();
+            var updatedGroup = await _graphClient.Groups[groupId].GetAsync(null, cancellationToken);
             if (updatedGroup == null)
             {
                 _logger.LogError("Graph API returned null when updating group {GroupId}", groupId);
@@ -422,14 +422,14 @@ public class GraphService : IGraphService
     /// Delete a group from Microsoft Graph (Azure AD).
     /// </summary>
     /// <param name="groupId">ID of the group to delete.</param>
-    public async Task DeleteGroupAsync(string groupId)
+    public async Task DeleteGroupAsync(string groupId, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Deleting group {GroupId} from Graph API", groupId);
-            await _graphClient.Groups[groupId].DeleteAsync();
+            await _graphClient.Groups[groupId].DeleteAsync(null, cancellationToken);
 
-            var group = await _graphClient.Groups[groupId].GetAsync();
+            var group = await _graphClient.Groups[groupId].GetAsync(null, cancellationToken);
             if (group != null)
             {
                 _logger.LogWarning("Group {GroupId} still exists after deletion attempt.", groupId);
@@ -456,14 +456,14 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="groupId">The unique identifier of the group.</param>
     /// <returns>List of member IDs in the group.</returns>
-    public async Task<List<string>> GetGroupMembersAsync(string groupId)
+    public async Task<List<string>> GetGroupMembersAsync(string groupId, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Fetching members for group {GroupId} from Graph API", groupId);
 
             var members = new List<string>();
-            var groupMembers = await _graphClient.Groups[groupId].Members.GetAsync();
+            var groupMembers = await _graphClient.Groups[groupId].Members.GetAsync(null, cancellationToken);
 
             if (groupMembers?.Value is not null)
             {
@@ -495,7 +495,7 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="userId">ID of the user to add.</param>
     /// <param name="groupIds">List of group IDs to add the user to.</param>
-    public async Task AddUserToGroupsAsync(string userId, List<string> groupIds)
+    public async Task AddUserToGroupsAsync(string userId, List<string> groupIds, CancellationToken cancellationToken = default)
     {
         foreach (var groupId in groupIds)
         {
@@ -508,7 +508,7 @@ public class GraphService : IGraphService
                     OdataId = $"https://graph.microsoft.com/v1.0/users/{userId}"
                 };
 
-                await _graphClient.Groups[groupId.ToString()].Members.Ref.PostAsync(reference);
+                await _graphClient.Groups[groupId.ToString()].Members.Ref.PostAsync(reference, null, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -523,14 +523,14 @@ public class GraphService : IGraphService
     /// </summary>
     /// <param name="userId">ID of the user to remove.</param>
     /// <param name="groupIds">List of group IDs to remove the user from.</param>
-    public async Task RemoveUserFromGroupsAsync(string userId, List<string> groupIds)
+    public async Task RemoveUserFromGroupsAsync(string userId, List<string> groupIds, CancellationToken cancellationToken = default)
     {
         foreach (var groupId in groupIds)
         {
             try
             {
                 _logger.LogInformation("Removing user {UserId} from group {GroupId} in Graph API", userId, groupId);
-                await _graphClient.Groups[groupId].Members[userId].Ref.DeleteAsync();
+                await _graphClient.Groups[groupId].Members[userId].Ref.DeleteAsync(null, cancellationToken);
             }
             catch (Microsoft.Graph.Models.ODataErrors.ODataError ex) when (ex.ResponseStatusCode == 404)
             {
@@ -552,11 +552,11 @@ public class GraphService : IGraphService
     /// Check if the Microsoft Graph API is reachable and properly configured.
     /// </summary>
     /// <returns><c>true</c> if the API is accessible; otherwise <c>false</c>.</returns>
-    public async Task<bool> IsAvailableAsync()
+    public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            await _graphClient.Users.GetAsync(config => config.QueryParameters.Top = 1);
+            await _graphClient.Users.GetAsync(config => config.QueryParameters.Top = 1, cancellationToken);
             return true;
         }
         catch (Exception ex)

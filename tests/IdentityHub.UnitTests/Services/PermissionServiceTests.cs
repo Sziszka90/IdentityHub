@@ -42,13 +42,15 @@ public class PermissionServiceTests
     public async Task ResolvePermissionsAsync_ReturnsPermissions_ForKnownRole()
     {
         var adminRole = new Role { Name = "Admin" };
+        var adminRoleId = Guid.NewGuid();
         _permissionsRepoMock
             .Setup(r => r.GetAllRolePermissionsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, List<string>>
+            .ReturnsAsync(new Dictionary<Guid, List<string>>
             {
-                ["Admin"] = ["users.read", "users.write"],
-                ["Viewer"] = ["users.read"]
+                [adminRoleId] = ["users.read", "users.write"]
             });
+
+        adminRole.Id = adminRoleId;
 
         var result = await CreateService().ResolvePermissionsAsync(new List<Role> { adminRole });
 
@@ -62,13 +64,18 @@ public class PermissionServiceTests
     {
         var adminRole = new Role { Name = "Admin" };
         var viewerRole = new Role { Name = "Viewer" };
+        var adminRoleId = Guid.NewGuid();
+        var viewerRoleId = Guid.NewGuid();
         _permissionsRepoMock
             .Setup(r => r.GetAllRolePermissionsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, List<string>>
+            .ReturnsAsync(new Dictionary<Guid, List<string>>
             {
-                ["Admin"] = ["users.read", "users.write"],
-                ["Viewer"] = ["users.read"]
+                [adminRoleId] = ["users.read", "users.write"],
+                [viewerRoleId] = ["users.read"]
             });
+
+        adminRole.Id = adminRoleId;
+        viewerRole.Id = viewerRoleId;
 
         var result = await CreateService().ResolvePermissionsAsync(new List<Role> { adminRole, viewerRole });
 
@@ -81,11 +88,12 @@ public class PermissionServiceTests
     public async Task ResolvePermissionsAsync_ReturnsEmpty_WhenRoleNotInMapping()
     {
         var unknownRole = new Role { Name = "UnknownRole" };
+        var adminRoleId = Guid.NewGuid();
         _permissionsRepoMock
             .Setup(r => r.GetAllRolePermissionsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, List<string>>
+            .ReturnsAsync(new Dictionary<Guid, List<string>>
             {
-                ["Admin"] = ["users.read"]
+                [adminRoleId] = ["users.read"]
             });
 
         var result = await CreateService().ResolvePermissionsAsync(new List<Role> { unknownRole });
@@ -130,15 +138,12 @@ public class PermissionServiceTests
     {
         var adminRole = new Role { Name = "Admin" };
         var viewerRole = new Role { Name = "Viewer" };
+        var groupId = Guid.NewGuid();
         _rolesRepoMock
-            .Setup(r => r.GetGroupToRoleDictionaryAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, Role>
-            {
-                ["grp-admins"] = adminRole,
-                ["grp-viewers"] = viewerRole
-            });
+            .Setup(r => r.GetGroupRoleMappingByGroupIdAsync(groupId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GroupRoleMapping { GroupId = groupId, RoleId = Guid.NewGuid(), Role = adminRole });
 
-        var result = await CreateService().MapGroupsToRolesAsync(["grp-admins"]);
+        var result = await CreateService().MapGroupsToRolesAsync([groupId.ToString()]);
 
         Assert.Single(result);
         Assert.Contains(result, r => r.Name == "Admin");
@@ -148,15 +153,16 @@ public class PermissionServiceTests
     public async Task MapGroupsToRolesAsync_DeduplicatesRoles_WhenMultipleGroupsMapToSameRole()
     {
         var adminRole = new Role { Name = "Admin" };
+        var groupId1 = Guid.NewGuid();
+        var groupId2 = Guid.NewGuid();
         _rolesRepoMock
-            .Setup(r => r.GetGroupToRoleDictionaryAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, Role>
-            {
-                ["grp-admins-eu"] = adminRole,
-                ["grp-admins-us"] = adminRole
-            });
+            .Setup(r => r.GetGroupRoleMappingByGroupIdAsync(groupId1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GroupRoleMapping { GroupId = groupId1, RoleId = Guid.NewGuid(), Role = adminRole });
+        _rolesRepoMock
+            .Setup(r => r.GetGroupRoleMappingByGroupIdAsync(groupId2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GroupRoleMapping { GroupId = groupId2, RoleId = Guid.NewGuid(), Role = adminRole });
 
-        var result = await CreateService().MapGroupsToRolesAsync(["grp-admins-eu", "grp-admins-us"]);
+        var result = await CreateService().MapGroupsToRolesAsync([groupId1.ToString(), groupId2.ToString()]);
 
         Assert.Single(result);
         Assert.Equal("Admin", result[0].Name);
@@ -166,14 +172,12 @@ public class PermissionServiceTests
     public async Task MapGroupsToRolesAsync_SkipsUnknownGroups()
     {
         var adminRole = new Role { Name = "Admin" };
+        var groupId = Guid.NewGuid();
         _rolesRepoMock
-            .Setup(r => r.GetGroupToRoleDictionaryAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, Role>
-            {
-                ["grp-admins"] = adminRole
-            });
+            .Setup(r => r.GetGroupRoleMappingByGroupIdAsync(groupId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GroupRoleMapping { GroupId = groupId, RoleId = Guid.NewGuid(), Role = adminRole });
 
-        var result = await CreateService().MapGroupsToRolesAsync(["grp-unknown"]);
+        var result = await CreateService().MapGroupsToRolesAsync([Guid.NewGuid().ToString()]);
 
         Assert.Empty(result);
     }
@@ -182,7 +186,7 @@ public class PermissionServiceTests
     public async Task MapGroupsToRolesAsync_ReturnsEmpty_WhenRepositoryThrows()
     {
         _rolesRepoMock
-            .Setup(r => r.GetGroupToRoleDictionaryAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetGroupRoleMappingByGroupIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("DB unavailable"));
 
         var result = await CreateService().MapGroupsToRolesAsync(["grp-admins"]);

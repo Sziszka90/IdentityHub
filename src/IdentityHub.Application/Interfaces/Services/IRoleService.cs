@@ -17,15 +17,17 @@ public interface IRoleService
     /// Gets all roles assigned to a user by mapping their direct group memberships.
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>List of <see cref="Role"/> entities assigned to the user via direct group membership.</returns>
-    Task<List<Role>> GetDirectRolesForUserAsync(string userId);
+    Task<List<Role>> GetDirectRolesForUserAsync(string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Gets all roles assigned to a user by mapping their transitive group memberships (including nested groups).
     /// </summary>
     /// <param name="userId">The unique identifier of the user.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>List of <see cref="Role"/> entities assigned to the user via transitive group membership.</returns>
-    Task<List<Role>> GetTransitiveRolesForUserAsync(string userId);
+    Task<List<Role>> GetTransitiveRolesForUserAsync(string userId, CancellationToken ct = default);
 
     // -------------------------------------------------------------------------
     // Roles CRUD
@@ -37,14 +39,6 @@ public interface IRoleService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of all <see cref="Role"/> entities.</returns>
     Task<List<Role>> GetAllRolesAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// Gets a role by its unique name.
-    /// </summary>
-    /// <param name="name">Role name.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The matching <see cref="Role"/> or <c>null</c> if not found.</returns>
-    Task<Role?> GetRoleByNameAsync(string name, CancellationToken ct = default);
 
     /// <summary>
     /// Gets a role by its unique ID.

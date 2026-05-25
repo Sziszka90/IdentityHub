@@ -1,3 +1,4 @@
+using IdentityHub.API.Constants;
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Domain.Models;
 using Microsoft.Extensions.Options;
@@ -26,19 +27,22 @@ public class TenantIsolationMiddleware
     public async Task InvokeAsync(HttpContext context, IUserTenantMappingsRepository userTenantMappingsRepository)
     {
         var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
+
         if (path == "/api/identity/me" || path == "/api/identity/status")
         {
+            _logger.LogDebug("Skipping tenant isolation middleware");
             await _next(context);
             return;
         }
 
         if (context.User?.Identity?.IsAuthenticated is not true)
         {
+            _logger.LogDebug("Skipping tenant isolation middleware");
             await _next(context);
             return;
         }
 
-        var userId = context.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value ?? string.Empty;
+        var userId = context.User.FindFirst(ClaimConstants.OBJECT_ID)?.Value ?? string.Empty;
 
         if (string.IsNullOrEmpty(userId))
         {
@@ -49,6 +53,7 @@ public class TenantIsolationMiddleware
         }
 
         var mapping = userTenantMappingsRepository.GetUserTenantMappingByUserId(userId);
+
         if (mapping is null || string.IsNullOrWhiteSpace(mapping.TenantId))
         {
             _logger.LogWarning("No tenant mapping found for user {UserId}", userId);
@@ -57,12 +62,10 @@ public class TenantIsolationMiddleware
             return;
         }
 
-        var tenantId = mapping.TenantId;
-
         if (_tenantOptions.AllowedTenantIds.Count > 0
-            && !_tenantOptions.AllowedTenantIds.Contains(tenantId, StringComparer.OrdinalIgnoreCase))
+            && !_tenantOptions.AllowedTenantIds.Contains(mapping.TenantId, StringComparer.OrdinalIgnoreCase))
         {
-            _logger.LogWarning("Rejected request for disallowed tenant {TenantId}", tenantId);
+            _logger.LogWarning("Rejected request for disallowed tenant {TenantId}", mapping.TenantId);
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(new { error = "Tenant is not allowed" });
             return;
@@ -70,14 +73,14 @@ public class TenantIsolationMiddleware
 
         var tenantContext = new TenantContext
         {
-            TenantId = tenantId,
+            TenantId = mapping.TenantId,
             UserId = userId ?? string.Empty
         };
 
         context.Items["TenantContext"] = tenantContext;
 
         _logger.LogDebug("Tenant context established: TenantId={TenantId}, UserId={UserId}",
-            tenantId, userId);
+            mapping.TenantId, userId);
 
         await _next(context);
     }

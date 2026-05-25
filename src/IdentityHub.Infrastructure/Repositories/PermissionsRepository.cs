@@ -39,6 +39,7 @@ public class PermissionsRepository : IPermissionsRepository
     public async Task<bool> DeletePermissionAsync(Guid id, CancellationToken ct = default)
     {
         var perm = await _db.Permissions.FirstOrDefaultAsync(x => x.Id == id, ct);
+
         if (perm is null)
         {
             return false;
@@ -49,46 +50,38 @@ public class PermissionsRepository : IPermissionsRepository
         return true;
     }
 
-    public async Task<List<string>> GetPermissionsForRoleAsync(string roleName, CancellationToken ct = default)
+    public async Task<List<string>> GetPermissionsForRoleAsync(Guid roleId, CancellationToken ct = default)
     {
         var role = await _db.Roles
             .Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Name == roleName, ct);
+            .FirstOrDefaultAsync(r => r.Id == roleId, ct);
 
         return role?.RolePermissions.Select(rp => rp.Permission.Name).ToList() ?? [];
     }
 
-    public async Task SetRolePermissionsAsync(string roleName, List<string> permissions, CancellationToken ct = default)
+    public async Task SetRolePermissionsAsync(Guid roleId, List<Guid> permissionIds, CancellationToken ct = default)
     {
         var role = await _db.Roles
             .Include(r => r.RolePermissions)
-            .FirstOrDefaultAsync(r => r.Name == roleName, ct)
-            ?? throw new KeyNotFoundException($"Role '{roleName}' not found");
+            .FirstOrDefaultAsync(r => r.Id == roleId, ct)
+            ?? throw new KeyNotFoundException($"Role '{roleId}' not found");
 
         _db.RolePermissions.RemoveRange(role.RolePermissions);
 
-        foreach (var permName in permissions)
+        foreach (var permissionId in permissionIds)
         {
-            var perm = await _db.Permissions.FirstOrDefaultAsync(p => p.Name == permName, ct);
-            if (perm is null)
-            {
-                perm = new Permission { Name = permName };
-                _db.Permissions.Add(perm);
-                await _db.SaveChangesAsync(ct);
-            }
-
             _db.RolePermissions.Add(new RolePermission
             {
                 RoleId = role.Id,
-                PermissionId = perm.Id
+                PermissionId = permissionId
             });
         }
 
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task<Dictionary<string, List<string>>> GetAllRolePermissionsAsync(CancellationToken ct = default)
+    public async Task<Dictionary<Guid, List<string>>> GetAllRolePermissionsAsync(CancellationToken ct = default)
     {
         var roles = await _db.Roles
             .Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
@@ -96,7 +89,7 @@ public class PermissionsRepository : IPermissionsRepository
             .ToListAsync(ct);
 
         return roles.ToDictionary(
-            r => r.Name,
+            r => r.Id,
             r => r.RolePermissions.Select(rp => rp.Permission.Name).ToList());
     }
 }
