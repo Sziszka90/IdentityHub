@@ -217,5 +217,3 @@ jobs:
               EntraId__TenantId="$ENTRA_TENANT_ID" \
               EntraId__ClientId="$ENTRA_CLIENT_ID" \
               EntraId__Audience="$ENTRA_AUDIENCE" \
-              TenantConfiguration__SeedTenantId="$TENANT_SEED_ID" \
-              TenantConfiguration__AllowedTenantIds__0="$TENANT_SEED_ID"
