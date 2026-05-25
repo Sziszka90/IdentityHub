@@ -1,7 +1,6 @@
 using IdentityHub.Application.Interfaces;
 using IdentityHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph.Drives.Item.Items.Item.Workbook.Functions.VarA;
 
 namespace IdentityHub.Application.Services;
 
@@ -36,17 +35,19 @@ public class PermissionService : IPermissionService
     /// <returns>Deduplicated list of permission names granted by any of the specified roles.</returns>
     public async Task<List<string>> ResolvePermissionsAsync(IEnumerable<Role> roles, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Resolving permissions based on provided roles.");
+        var roleList = roles?.ToList();
+        _logger.LogInformation("Resolving permissions for {RoleCount} role(s)", roleList?.Count ?? 0);
 
-        if (roles is null || !roles.Any())
+        if (roleList is null || roleList.Count == 0)
         {
+            _logger.LogDebug("No roles were provided for permission resolution");
             return [];
         }
 
         // If RolePermissions are populated, use them; otherwise, fallback to DB mapping for test compatibility
         var permissions = new HashSet<string>();
         bool usedRolePermissions = false;
-        foreach (var role in roles)
+        foreach (var role in roleList)
         {
             if (role.RolePermissions != null && role.RolePermissions.Count > 0)
             {
@@ -62,6 +63,7 @@ public class PermissionService : IPermissionService
         }
         if (usedRolePermissions)
         {
+            _logger.LogDebug("Resolved {PermissionCount} permission(s) directly from loaded role permissions", permissions.Count);
             return [.. permissions];
         }
 
@@ -79,7 +81,7 @@ public class PermissionService : IPermissionService
 
         if (rolePermissionsMapping is not null)
         {
-            foreach (var role in roles)
+            foreach (var role in roleList)
             {
                 if (rolePermissionsMapping.TryGetValue(role.Id, out var dbPerms) && dbPerms is not null)
                 {
@@ -91,6 +93,7 @@ public class PermissionService : IPermissionService
             }
         }
 
+        _logger.LogDebug("Resolved {PermissionCount} permission(s) from repository fallback", permissions.Count);
         return [.. permissions];
     }
 
@@ -101,10 +104,12 @@ public class PermissionService : IPermissionService
     /// <returns>List of application role ids that correspond to the given groups.</returns>
     public async Task<List<Role>> MapGroupsToRolesAsync(IEnumerable<string> groupIds, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Mapping groups to roles.");
+        var groupIdList = groupIds?.ToList();
+        _logger.LogInformation("Mapping {GroupCount} group identifier(s) to roles", groupIdList?.Count ?? 0);
 
-        if (groupIds is null || !groupIds.Any())
+        if (groupIdList is null || groupIdList.Count == 0)
         {
+            _logger.LogDebug("No group identifiers were provided for role mapping");
             return [];
         }
 
@@ -112,7 +117,7 @@ public class PermissionService : IPermissionService
 
         try
         {
-            foreach (var groupId in groupIds)
+            foreach (var groupId in groupIdList)
             {
                 if (Guid.TryParse(groupId, out var groupIdGuid))
                 {
@@ -122,19 +127,26 @@ public class PermissionService : IPermissionService
                         groupRoleMappings.Add(map);
                     }
                 }
+                else
+                {
+                    _logger.LogDebug("Skipping non-GUID group identifier {GroupId}", groupId);
+                }
             }
 
-            _logger.LogDebug("Resolved group-role mapping from database");
+            _logger.LogDebug("Resolved {MappingCount} group-role mapping(s) from repository", groupRoleMappings.Count);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to read group-role mappings from DB");
         }
 
-        return [.. groupRoleMappings
+        List<Role> roles = [.. groupRoleMappings
             .Select(m => m.Role)
             .Where(role => role is not null)
             .DistinctBy(role => role.Id)];
+
+        _logger.LogDebug("Mapped group identifiers to {RoleCount} distinct role(s)", roles.Count);
+        return roles;
     }
 
     /// <summary>
@@ -145,7 +157,7 @@ public class PermissionService : IPermissionService
     /// <returns><c>true</c> if the permission matches the pattern; otherwise <c>false</c>.</returns>
     public bool MatchesPermission(string permission, string pattern)
     {
-        _logger.LogInformation("Checking if permission string matches a pattern.");
+        _logger.LogDebug("Checking whether permission {Permission} matches pattern {Pattern}", permission, pattern);
 
         if (string.IsNullOrEmpty(permission) || string.IsNullOrEmpty(pattern))
         {
@@ -195,12 +207,17 @@ public class PermissionService : IPermissionService
     /// <returns>The created <see cref="Permission"/> or <c>null</c> if a permission with the same name already exists.</returns>
     public async Task<Permission?> CreatePermissionAsync(string name, CancellationToken ct = default)
     {
+        _logger.LogInformation("Creating permission {PermissionName}", name);
+
         if (await _permissionsRepository.GetPermissionByNameAsync(name, ct) is not null)
         {
+            _logger.LogWarning("Permission {PermissionName} already exists", name);
             return null;
         }
 
-        return await _permissionsRepository.CreatePermissionAsync(new Permission { Name = name }, ct);
+        var permission = await _permissionsRepository.CreatePermissionAsync(new Permission { Name = name }, ct);
+        _logger.LogInformation("Created permission {PermissionName} with ID {PermissionId}", permission.Name, permission.Id);
+        return permission;
     }
 
     /// <summary>
@@ -211,12 +228,17 @@ public class PermissionService : IPermissionService
     /// <returns><c>true</c> if deleted; otherwise <c>false</c>.</returns>
     public async Task<bool> DeletePermissionAsync(string name, CancellationToken ct = default)
     {
+        _logger.LogInformation("Deleting permission {PermissionName}", name);
+
         var permission = await _permissionsRepository.GetPermissionByNameAsync(name, ct);
         if (permission is null)
         {
+            _logger.LogWarning("Permission {PermissionName} was not found for deletion", name);
             return false;
         }
 
-        return await _permissionsRepository.DeletePermissionAsync(permission.Id, ct);
+        var deleted = await _permissionsRepository.DeletePermissionAsync(permission.Id, ct);
+        _logger.LogInformation("Deletion of permission {PermissionName} completed with result {Deleted}", name, deleted);
+        return deleted;
     }
 }

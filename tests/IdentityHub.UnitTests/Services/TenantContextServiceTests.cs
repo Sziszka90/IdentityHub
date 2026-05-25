@@ -4,6 +4,7 @@ using IdentityHub.Application.Services;
 using IdentityHub.Domain.Entities;
 using IdentityHub.Domain.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
@@ -17,7 +18,7 @@ public class TenantContextServiceTests
     private readonly Mock<IServiceProvider> _serviceProviderMock = new();
     private readonly IOptions<TenantConfigurationOptions> _tenantOptions = Options.Create(new TenantConfigurationOptions { HeaderName = "X-Tenant-Id" });
 
-    private TenantContextService CreateService() => new(_httpContextAccessorMock.Object, _tenantOptions);
+    private TenantContextService CreateService() => new(_httpContextAccessorMock.Object, _tenantOptions, NullLogger<TenantContextService>.Instance);
 
     // -------------------------------------------------------------------------
     // GetTenantContext

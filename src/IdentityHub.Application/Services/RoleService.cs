@@ -133,9 +133,12 @@ public class RoleService : IRoleService
     /// <returns>The created <see cref="Role"/> or <c>null</c> if a role with the same name exists.</returns>
     public async Task<Role?> CreateRoleAsync(string name, string? description, List<string> permissions, CancellationToken ct = default)
     {
+        _logger.LogInformation("Creating role {RoleName} with {PermissionCount} permission(s)", name, permissions.Count);
+
         var existingRole = await _rolesRepository.GetRoleByNameAsync(name, ct);
         if (existingRole is not null)
         {
+            _logger.LogWarning("Role {RoleName} already exists with ID {RoleId}", existingRole.Name, existingRole.Id);
             return existingRole;
         }
 
@@ -147,6 +150,7 @@ public class RoleService : IRoleService
             await _permissionsRepository.SetRolePermissionsAsync(role.Id, permissionIds, ct);
         }
 
+        _logger.LogInformation("Created role {RoleName} with ID {RoleId}", role.Name, role.Id);
         return await _rolesRepository.GetRoleByNameAsync(role.Name, ct);
     }
 
@@ -160,9 +164,12 @@ public class RoleService : IRoleService
     /// <returns>The updated <see cref="Role"/> or <c>null</c> if not found.</returns>
     public async Task<Role?> UpdateRoleAsync(Guid roleId, string? description, List<string> permissions, CancellationToken ct = default)
     {
+        _logger.LogInformation("Updating role {RoleId} with {PermissionCount} permission(s)", roleId, permissions.Count);
+
         var role = await _rolesRepository.GetRoleByIdAsync(roleId, ct);
         if (role is null)
         {
+            _logger.LogWarning("Role {RoleId} was not found for update", roleId);
             return null;
         }
 
@@ -171,6 +178,7 @@ public class RoleService : IRoleService
         var permissionIds = await ResolvePermissionIdsAsync(permissions, ct);
         await _permissionsRepository.SetRolePermissionsAsync(role.Id, permissionIds, ct);
 
+        _logger.LogInformation("Updated role {RoleId}", roleId);
         return await _rolesRepository.GetRoleByIdAsync(roleId, ct);
     }
 
@@ -182,6 +190,7 @@ public class RoleService : IRoleService
     /// <returns><c>true</c> if deleted; otherwise <c>false</c>.</returns>
     public Task<bool> DeleteRoleAsync(Guid roleId, CancellationToken ct = default)
     {
+        _logger.LogInformation("Deleting role {RoleId}", roleId);
         return _rolesRepository.DeleteRoleAsync(roleId, ct);
     }
 
@@ -196,8 +205,10 @@ public class RoleService : IRoleService
     /// <returns>List of resolved <see cref="GroupRoleMapping"/> DTOs.</returns>
     public async Task<List<GroupRoleMapping>> GetAllGroupMappingsAsync(CancellationToken ct = default)
     {
+        _logger.LogInformation("Fetching all group-role mappings");
         var mappings = await _rolesRepository.GetAllGroupRoleMappingsAsync(ct);
         var resolvedMappings = await Task.WhenAll(mappings.Select(mapping => ResolveGroupRoleMappingAsync(mapping, ct)));
+        _logger.LogDebug("Resolved {MappingCount} group-role mapping(s)", resolvedMappings.Count(mapping => mapping is not null));
         return resolvedMappings.Where(mapping => mapping is not null).Select(mapping => mapping!).ToList();
     }
 
@@ -211,12 +222,14 @@ public class RoleService : IRoleService
     {
         if (!Guid.TryParse(groupName, out var groupGuid))
         {
+            _logger.LogWarning("Group identifier {GroupName} is not a valid GUID", groupName);
             return null;
         }
 
         var mapping = await _rolesRepository.GetGroupRoleMappingByGroupIdAsync(groupGuid, ct);
         if (mapping is null)
         {
+            _logger.LogDebug("No group-role mapping was found for group {GroupId}", groupGuid);
             return null;
         }
 
@@ -241,13 +254,18 @@ public class RoleService : IRoleService
     /// <returns>The created <see cref="GroupRoleMapping"/> or <c>null</c> if a mapping for the group already exists.</returns>
     public async Task<GroupRoleMapping?> CreateGroupMappingAsync(Guid groupId, Guid roleId, CancellationToken ct = default)
     {
+        _logger.LogInformation("Creating group-role mapping for group {GroupId} and role {RoleId}", groupId, roleId);
+
         if (await _rolesRepository.GetGroupRoleMappingByGroupIdAsync(groupId, ct) is not null)
         {
+            _logger.LogWarning("Group-role mapping already exists for group {GroupId}", groupId);
             return null;
         }
 
-        return await _rolesRepository.CreateGroupRoleMappingAsync(
+        var mapping = await _rolesRepository.CreateGroupRoleMappingAsync(
             new GroupRoleMapping { GroupId = groupId, RoleId = roleId }, ct);
+        _logger.LogInformation("Created group-role mapping {MappingId}", mapping.Id);
+        return mapping;
     }
 
     /// <summary>
@@ -259,6 +277,7 @@ public class RoleService : IRoleService
     /// <returns>The updated <see cref="GroupRoleMapping"/> or <c>null</c> if not found.</returns>
     public async Task<GroupRoleMapping?> UpdateGroupMappingAsync(Guid id, Guid groupId, Guid roleId, CancellationToken ct = default)
     {
+        _logger.LogInformation("Updating group-role mapping {MappingId}", id);
         var mappings = await _rolesRepository.GetAllGroupRoleMappingsAsync(ct);
         var mapping = mappings.FirstOrDefault(m => m.Id == id);
 
@@ -266,9 +285,12 @@ public class RoleService : IRoleService
         {
             mapping.RoleId = roleId;
             mapping.GroupId = groupId;
-            return await _rolesRepository.UpdateGroupRoleMappingAsync(mapping, ct);
+            var updatedMapping = await _rolesRepository.UpdateGroupRoleMappingAsync(mapping, ct);
+            _logger.LogInformation("Updated group-role mapping {MappingId} to group {GroupId} and role {RoleId}", id, groupId, roleId);
+            return updatedMapping;
         }
 
+        _logger.LogWarning("Group-role mapping {MappingId} was not found for update", id);
         return null;
     }
 
@@ -279,7 +301,10 @@ public class RoleService : IRoleService
     /// <param name="ct">Cancellation token.</param>
     /// <returns><c>true</c> if deleted; otherwise <c>false</c>.</returns>
     public Task<bool> DeleteGroupMappingAsync(Guid id, CancellationToken ct = default)
-        => _rolesRepository.DeleteGroupRoleMappingAsync(id, ct);
+    {
+        _logger.LogInformation("Deleting group-role mapping {MappingId}", id);
+        return _rolesRepository.DeleteGroupRoleMappingAsync(id, ct);
+    }
 
     private async Task<GroupRoleMapping?> ResolveGroupRoleMappingAsync(GroupRoleMapping mapping, CancellationToken ct)
     {
@@ -321,18 +346,23 @@ public class RoleService : IRoleService
     private async Task<List<Guid>> ResolvePermissionIdsAsync(IEnumerable<string> permissionNames, CancellationToken ct)
     {
         var permissionIds = new List<Guid>();
+        var permissionNameList = permissionNames.ToList();
 
-        foreach (var permissionName in permissionNames)
+        _logger.LogDebug("Resolving {PermissionCount} permission name(s) to IDs", permissionNameList.Count);
+
+        foreach (var permissionName in permissionNameList)
         {
             var permission = await _permissionsRepository.GetPermissionByNameAsync(permissionName, ct);
             if (permission is null)
             {
+                _logger.LogDebug("Permission {PermissionName} was missing and will be created", permissionName);
                 permission = await _permissionsRepository.CreatePermissionAsync(new IdentityHub.Domain.Entities.Permission { Name = permissionName }, ct);
             }
 
             permissionIds.Add(permission.Id);
         }
 
+        _logger.LogDebug("Resolved {PermissionCount} permission ID(s)", permissionIds.Count);
         return permissionIds;
     }
 }

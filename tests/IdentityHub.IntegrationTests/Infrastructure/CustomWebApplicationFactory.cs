@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -53,7 +54,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         {
             // ── Database ──────────────────────────────────────────────────────
             // Remove the SQL Server DbContext registered in Program.cs
+            services.RemoveAll<IdentityHubDbContext>();
             services.RemoveAll<DbContextOptions<IdentityHubDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<IdentityHubDbContext>>();
             // Register SQLite using the shared in-memory connection
             services.AddDbContext<IdentityHubDbContext>((serviceProvider, options) =>
                 options
